@@ -1,0 +1,17 @@
+SET FOREIGN_KEY_CHECKS = 0; 
+TRUNCATE TABLE qrtz_calendars; 
+TRUNCATE TABLE qrtz_cron_triggers; 
+TRUNCATE TABLE qrtz_fired_triggers; 
+TRUNCATE TABLE qrtz_locks; 
+TRUNCATE TABLE qrtz_paused_trigger_grps; 
+TRUNCATE TABLE qrtz_scheduler_state; 
+TRUNCATE TABLE qrtz_simple_triggers; 
+TRUNCATE TABLE qrtz_simprop_triggers; 
+TRUNCATE TABLE qrtz_triggers; 
+TRUNCATE TABLE qrtz_job_details; 
+TRUNCATE TABLE qrtz_blob_triggers; 
+SET FOREIGN_KEY_CHECKS = 1; 
+DROP TABLE IF EXISTS schedule_job; 
+CREATE TABLE schedule_job (id bigint NOT NULL AUTO_INCREMENT COMMENT 'id',bean_name varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT 'spring bean名称',params varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '参数',cron_expression varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT 'cron表达式',status tinyint unsigned DEFAULT NULL COMMENT '任务状态  0：暂停  1：正常',remark varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '备注',creator bigint DEFAULT NULL COMMENT '创建者',create_date datetime DEFAULT NULL COMMENT '创建时间',updater bigint DEFAULT NULL COMMENT '更新者',update_date datetime DEFAULT NULL COMMENT '更新时间',PRIMARY KEY (id) USING BTREE,KEY idx_create_date (create_date) USING BTREE) ENGINE=InnoDB AUTO_INCREMENT=1067246875800000091 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC COMMENT='定时任务';
+insert  into schedule_job(id,bean_name,params,cron_expression,status,remark,creator,create_date,updater,update_date) values (1067246875800000077,'analySetTask','','* 0/1 * * * ? *',1,'分析设置定时器，每分钟执行一次',1067246875800000001,'2024-07-11 13:46:56',1353943117220315149,'2025-05-08 20:25:16'),(1067246875800000078,'monitorAnalyTask','0 0/5 * * * ? *','* 0/5 * * * ? *',1,'摄像头检测定时器，每5分钟执行一次',1067246875800000001,'2024-07-12 09:47:54',1353943117220315149,'2025-05-19 14:41:18'),(1067246875800000084,'getLogicroomNumberTask','0','0 0/1 * * * ? *',1,'参数为1时，表示根据定时器间隔循环来获取人数，参数为0时或者为空时，表示定时器判断有任意考场获取过人数时则不再获取',1353943117220315149,'2025-04-23 14:22:16',1353943117220315149,'2025-05-19 22:36:13'),(1067246875800000085,'uploadTask','','0 0/2 * * * ? *',1,'同步质量检测和考场人数到上级平台',1353943117220315149,'2025-04-24 11:32:54',1353943117220315149,'2025-04-24 11:33:06'),(1067246875800000086,'pushSfyzTask','','* 0/10 * * * ? *',0,'定时推送到身份验证服务定时器，只有市平台开启这个定时器，定时10分钟推送异常告警数据',1353943117220315149,'2025-05-08 19:46:10',1353943117220315149,'2025-05-08 19:46:10'),(1067246875800000087,'syncBehaviorTask','','* 0/5 * * * ? *',1,'同步检测项定时器，进行算法检测项热更新，考点开启这个定时器，设计5分钟请求一次',1353943117220315149,'2025-05-08 19:46:26',1353943117220315149,'2025-05-08 19:46:26'),(1067246875800000088,'syncSoftwareTask','','* 0/15 * * * ? *',1,'同步检测软件版本定时器，只有考点需要开启，如果版本不一致，则同步到数据库中,15分钟执行一次',1353943117220315149,'2025-05-08 19:47:30',1353943117220315149,'2025-05-08 19:47:30'),(1067246875800000089,'pushAutoTask','1','* 0/2 * * * ? *',1,'处理考点平台自动推送审核数据到省平台，只需要考点开启,2分钟执行一次 广州版本',1353943117220315149,'2025-05-10 15:49:43',1353943117220315140,'2025-05-12 20:24:00'); 
+DELETE FROM auth_alarm WHERE create_time < '2025-05-23 09:00:00';

@@ -1,0 +1,89 @@
+/* 全局样式 */
+body {
+    background-color: #f8f9fa;
+}
+
+/* 导航栏样式 */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,.1);
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+/* 卡片样式 */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075);
+    border: none;
+    margin-bottom: 1rem;
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(0,0,0,.125);
+}
+
+/* 表单样式 */
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);
+}
+
+/* 按钮样式 */
+.btn-primary {
+    padding: 0.5rem 1.5rem;
+}
+
+/* 表格样式 */
+.table {
+    background-color: #fff;
+}
+
+.table th {
+    background-color: #f8f9fa;
+}
+
+/* 文件上传样式 */
+.file-upload {
+    border: 2px dashed #ddd;
+    border-radius: 4px;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.file-upload:hover {
+    border-color: #0d6efd;
+    background-color: rgba(13,110,253,.05);
+}
+
+/* Toast消息样式 */
+.toast {
+    background-color: #fff;
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15);
+}
+
+/* 图标样式 */
+.mdi {
+    margin-right: 0.25rem;
+}
+
+/* 加载动画 */
+.spinner-border {
+    width: 1rem;
+    height: 1rem;
+    margin-right: 0.5rem;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+    
+    .card {
+        margin: 0.5rem -0.5rem;
+    }
+}

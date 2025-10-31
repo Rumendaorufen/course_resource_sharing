@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.course.mapper.UserMapper">
+    <select id="findByUsername" resultType="com.course.entity.User">
+        SELECT 
+            id, username, password, real_name, role, email, phone
+        FROM user 
+        WHERE username = #{username}
+    </select>
+    
+    <select id="findByRole" resultType="com.course.entity.User">
+        SELECT 
+            id, username, real_name, role, email, phone
+        FROM user 
+        WHERE role = #{role}
+        ORDER BY real_name
+    </select>
+</mapper>
