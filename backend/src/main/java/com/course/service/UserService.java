@@ -41,4 +41,20 @@ public interface UserService {
      * 获取所有教师
      */
     List<User> getAllTeachers();
+
+    
+    /**
+     * 获取所有用户
+     */
+    List<User> getAllUsers();
+    
+    /**
+     * 新增用户（管理员使用）
+     */
+    void addUser(UserDTO userDTO);
+    
+    /**
+     * 删除用户（管理员使用）
+     */
+    void deleteUser(Long id);
 }

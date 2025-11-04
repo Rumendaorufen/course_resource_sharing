@@ -1,401 +1,286 @@
 <template>
   <div class="user-management">
-    <el-card class="box-card">
-      <template #header>
-        <div class="card-header">
-          <div class="left-section">
-            <span>用户管理</span>
-            <el-input
-              v-model="searchUsername"
-              placeholder="搜索用户名"
-              class="search-input"
-              clearable
-            >
-              <template #prefix>
-                <el-icon><Search /></el-icon>
-              </template>
-            </el-input>
-            <el-select
-              v-model="filterRole"
-              placeholder="选择角色筛选"
-              clearable
-              class="filter-select"
-            >
-              <el-option label="管理员" value="ADMIN" />
-              <el-option label="教师" value="TEACHER" />
-              <el-option label="学生" value="STUDENT" />
-            </el-select>
-          </div>
-          <el-button type="primary" @click="handleAdd">添加用户</el-button>
-        </div>
-      </template>
-
-      <!-- 用户列表 -->
-      <el-table :data="filteredUsers" style="width: 100%" v-loading="loading">
-        <el-table-column prop="username" label="用户名" />
-        <el-table-column prop="realName" label="真实姓名" />
-        <el-table-column prop="role" label="角色">
-          <template #default="scope">
-            <el-tag :type="getRoleType(scope.row.role)">{{ getRoleLabel(scope.row.role) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="email" label="邮箱" />
-        <el-table-column prop="phone" label="电话" />
-        <el-table-column prop="enabled" label="状态">
-          <template #default="scope">
-            <el-tag :type="scope.row.enabled ? 'success' : 'danger'">
-              {{ scope.row.enabled ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="160" />
-        <el-table-column prop="updateTime" label="更新时间" width="160" />
-        <el-table-column prop="lastLoginTime" label="最后登录时间" width="160" />
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="scope">
-            <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
-            <el-button 
-              size="small" 
-              type="danger" 
-              @click="handleDelete(scope.row)">
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 分页 -->
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 30, 50]"
-          layout="total, sizes, prev, pager, next"
-          :total="filteredTotal"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
-    </el-card>
-
-    <!-- 用户表单对话框 -->
+    <h2>用户管理</h2>
+    
+    <!-- 添加用户按钮 -->
+    <el-button type="primary" @click="showAddDialog" class="add-user-btn">
+      <el-icon><Plus /></el-icon>
+      添加用户
+    </el-button>
+    
+    <!-- 搜索功能 -->
+    <el-form :inline="true" :model="searchForm" class="search-form">
+      <el-form-item label="搜索">
+        <el-input v-model="searchForm.keyword" placeholder="用户名/姓名/邮箱" />
+      </el-form-item>
+      <el-form-item>
+        <el-select v-model="searchForm.role" placeholder="角色">
+          <el-option value="" label="全部" />
+          <el-option value="TEACHER" label="教师" />
+          <el-option value="STUDENT" label="学生" />
+        </el-select>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" @click="handleSearch">搜索</el-button>
+      </el-form-item>
+    </el-form>
+    
+    <!-- 用户列表 -->
+    <el-table v-loading="loading" :data="filteredUsers" style="width: 100%">
+      <el-table-column prop="id" label="ID" width="80" />
+      <el-table-column prop="username" label="用户名" />
+      <el-table-column prop="realName" label="真实姓名" />
+      <el-table-column prop="role" label="角色" width="100">
+        <template #default="scope">
+          <el-tag v-if="scope.row.role === 'ADMIN'" type="danger">管理员</el-tag>
+          <el-tag v-else-if="scope.row.role === 'TEACHER'" type="primary">教师</el-tag>
+          <el-tag v-else type="info">学生</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="email" label="邮箱" />
+      <el-table-column prop="phone" label="手机号" />
+      <el-table-column prop="enabled" label="状态" width="80">
+        <template #default="scope">
+          <el-tag v-if="scope.row.enabled" type="success">启用</el-tag>
+          <el-tag v-else type="warning">禁用</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="createTime" label="创建时间" width="180" />
+      <el-table-column label="操作" width="120" fixed="right">
+        <template #default="scope">
+          <el-button 
+            type="danger" 
+            size="small" 
+            @click="handleDeleteUser(scope.row)"
+            :loading="deletingId === scope.row.id"
+          >
+            删除
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+    
+    <!-- 添加用户对话框 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="dialogTitle"
-      width="30%"
-      @close="closeDialog"
+      title="添加用户"
+      width="500px"
     >
       <el-form
-        ref="formRef"
-        :model="formData"
-        :rules="formRules"
+        ref="userFormRef"
+        :model="userForm"
+        :rules="userRules"
         label-width="80px"
       >
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="formData.username" />
+          <el-input v-model="userForm.username" placeholder="请输入用户名" />
         </el-form-item>
-        <el-form-item 
-          label="密码" 
-          prop="password"
-        >
-          <el-input 
-            v-model="formData.password" 
-            type="password"
-            :placeholder="dialogTitle === '编辑用户' ? '不修改请留空' : '请输入密码'"
-          />
-        </el-form-item>
-        <el-form-item label="真实姓名" prop="realName">
-          <el-input v-model="formData.realName" />
+        <el-form-item label="密码" prop="password">
+          <el-input v-model="userForm.password" type="password" placeholder="请输入密码" />
         </el-form-item>
         <el-form-item label="角色" prop="role">
-          <el-select v-model="formData.role" placeholder="请选择角色">
-            <el-option label="学生" value="STUDENT" />
-            <el-option label="教师" value="TEACHER" />
-            <el-option label="管理员" value="ADMIN" />
+          <el-select v-model="userForm.role" placeholder="请选择角色">
+            <el-option value="TEACHER" label="教师" />
+            <el-option value="STUDENT" label="学生" />
           </el-select>
         </el-form-item>
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="formData.email" />
+        <el-form-item label="真实姓名" prop="realName">
+          <el-input v-model="userForm.realName" placeholder="请输入真实姓名" />
         </el-form-item>
-        <el-form-item label="电话" prop="phone">
-          <el-input v-model="formData.phone" />
+        <el-form-item label="邮箱" prop="email">
+          <el-input v-model="userForm.email" placeholder="请输入邮箱" />
+        </el-form-item>
+        <el-form-item label="手机号">
+          <el-input v-model="userForm.phone" placeholder="请输入手机号（可选）" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit">确定</el-button>
-        </span>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleAddUser" :loading="submitting">确定</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import axios from '../utils/axios'
-import { Search } from '@element-plus/icons-vue'
+import { Plus } from '@element-plus/icons-vue'
+import request from '../utils/request'
 
-// 响应式数据
-const users = ref([])
+// 状态变量
 const loading = ref(false)
-const currentPage = ref(1)
-const pageSize = ref(10)
-const total = ref(0)
+const submitting = ref(false)
+const deletingId = ref(null)
 const dialogVisible = ref(false)
-const dialogTitle = ref('')
-const formRef = ref(null)
-const formData = ref({
+const userFormRef = ref(null)
+const users = ref([])
+
+// 搜索表单
+const searchForm = ref({
+  keyword: '',
+  role: ''
+})
+
+// 添加用户表单
+const userForm = ref({
   username: '',
   password: '',
+  role: 'STUDENT',
   realName: '',
-  role: '',
   email: '',
   phone: ''
 })
 
-// 动态验证规则
-const formRules = computed(() => {
-  const isEdit = dialogTitle.value === '编辑用户'
-  return {
-    username: [
-      { required: true, message: '请输入用户名', trigger: 'blur' },
-      { min: 4, max: 20, message: '长度在 4 到 20 个字符', trigger: 'blur' }
-    ],
-    password: isEdit 
-      ? [{ min: 6, max: 20, message: '长度在 6 到 20 个字符', trigger: 'blur' }]
-      : [
-          { required: true, message: '请输入密码', trigger: 'blur' },
-          { min: 6, max: 20, message: '长度在 6 到 20 个字符', trigger: 'blur' }
-        ],
-    role: [
-      { required: true, message: '请选择角色', trigger: 'change' }
-    ],
-    realName: [
-      { required: true, message: '请输入真实姓名', trigger: 'blur' }
-    ],
-    email: [
-      { required: true, message: '请输入邮箱地址', trigger: 'blur' },
-      { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
-    ]
-  }
-})
+// 表单验证规则
+const userRules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 4, max: 20, message: '用户名长度必须在4-20个字符之间', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, max: 20, message: '密码长度必须在6-20个字符之间', trigger: 'blur' }
+  ],
+  role: [
+    { required: true, message: '请选择角色', trigger: 'change' }
+  ],
+  realName: [
+    { required: true, message: '请输入真实姓名', trigger: 'blur' }
+  ],
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '邮箱格式不正确', trigger: 'blur' }
+  ]
+}
 
-// 添加角色筛选相关的响应式数据
-const filterRole = ref('')
-
-// 添加搜索相关的响应式数据
-const searchUsername = ref('')
-
-// 修改过滤用户数据的计算属性
+// 过滤后的用户列表
 const filteredUsers = computed(() => {
-  let filtered = users.value
-
-  // 按用户名搜索
-  if (searchUsername.value) {
-    filtered = filtered.filter(user => 
-      user.username.toLowerCase().includes(searchUsername.value.toLowerCase())
-    )
-  }
-
-  // 按角色筛选
-  if (filterRole.value) {
-    filtered = filtered.filter(user => user.role === filterRole.value)
-  }
-
-  // 分页处理
-  return filtered.slice(
-    (currentPage.value - 1) * pageSize.value,
-    currentPage.value * pageSize.value
-  )
+  return users.value.filter(user => {
+    // 排除管理员用户
+    if (user.role === 'ADMIN') return false
+    
+    // 按关键字搜索
+    const keywordMatch = !searchForm.value.keyword ||
+      user.username.toLowerCase().includes(searchForm.value.keyword.toLowerCase()) ||
+      user.realName.toLowerCase().includes(searchForm.value.keyword.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchForm.value.keyword.toLowerCase())
+    
+    // 按角色筛选
+    const roleMatch = !searchForm.value.role || user.role === searchForm.value.role
+    
+    return keywordMatch && roleMatch
+  })
 })
 
-// 修改总数计算属性
-const filteredTotal = computed(() => {
-  let filtered = users.value
-
-  // 按用户名搜索
-  if (searchUsername.value) {
-    filtered = filtered.filter(user => 
-      user.username.toLowerCase().includes(searchUsername.value.toLowerCase())
-    )
-  }
-
-  // 按角色筛选
-  if (filterRole.value) {
-    filtered = filtered.filter(user => user.role === filterRole.value)
-  }
-
-  return filtered.length
-})
-
-// 获取用户列表
+// 获取所有用户
 const fetchUsers = async () => {
+  loading.value = true
   try {
-    loading.value = true
-    const response = await axios.get('/api/users', {
-      params: {
-        page: currentPage.value - 1,
-        size: pageSize.value
-      }
-    })
-    console.log('Response:', response) // 添加日志
-    if (response.code === 200) {
-      const { content, totalElements } = response.data
-      users.value = content
-      total.value = totalElements
-      console.log('Users:', users.value) // 添加日志
-    } else {
-      ElMessage.error(response.message || '获取用户列表失败')
+    const response = await request.get('/users/all')
+    if (response.data.code === 200) {
+      users.value = response.data.data
     }
   } catch (error) {
-    console.error('获取用户列表失败:', error)
     ElMessage.error('获取用户列表失败')
+    console.error('Error fetching users:', error)
   } finally {
     loading.value = false
   }
 }
 
-// 角色标签相关
-const getRoleLabel = (role) => {
-  const roleMap = {
-    'ADMIN': '管理员',
-    'TEACHER': '教师',
-    'STUDENT': '学生'
-  }
-  return roleMap[role] || role
-}
-
-const getRoleType = (role) => {
-  const typeMap = {
-    'ADMIN': 'danger',
-    'TEACHER': 'warning',
-    'STUDENT': 'success'
-  }
-  return typeMap[role] || 'info'
-}
-
-// 处理添加用户
-const handleAdd = () => {
-  dialogTitle.value = '添加用户'
-  formData.value = {
+// 显示添加用户对话框
+const showAddDialog = () => {
+  // 重置表单
+  userForm.value = {
     username: '',
     password: '',
+    role: 'STUDENT',
     realName: '',
-    role: '',
     email: '',
     phone: ''
   }
-  dialogVisible.value = true
-}
-
-// 处理编辑用户
-const handleEdit = (row) => {
-  dialogTitle.value = '编辑用户'
-  formData.value = {
-    id: row.id,
-    username: row.username,
-    password: '', // 编辑时不显示密码
-    realName: row.realName,
-    role: row.role,
-    email: row.email,
-    phone: row.phone
+  if (userFormRef.value) {
+    userFormRef.value.resetFields()
   }
   dialogVisible.value = true
 }
 
-// 处理删除用户
-const handleDelete = (row) => {
-  ElMessageBox.confirm(
-    `确认删除用户 ${row.username} 吗？`,
-    '警告',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  )
-  .then(async () => {
-    try {
-      const response = await axios.delete(`/api/users/${row.id}`)
-      if (response.code === 200) {
-        ElMessage.success('删除成功')
-        fetchUsers()
-      } else {
-        ElMessage.error(response.message || '删除失败')
-      }
-    } catch (error) {
-      console.error('删除用户失败:', error)
-      ElMessage.error(error.response?.data?.message || '删除失败')
-    }
-  })
-  .catch(() => {})
-}
-
-// 提交表单
-const handleSubmit = async () => {
-  if (!formRef.value) return
+// 添加用户
+const handleAddUser = async () => {
+  if (!userFormRef.value) return
   
   try {
-    await formRef.value.validate()
-    const isEdit = dialogTitle.value === '编辑用户'
+    await userFormRef.value.validate()
+    submitting.value = true
     
-    // 准备提交数据
-    const submitData = Object.entries(formData.value).reduce((acc, [key, value]) => {
-      if (value !== null && value !== '' && value !== undefined) {
-        acc[key] = value
-      }
-      return acc
-    }, {})
-
-    // 如果是编辑用户且没有输入密码，删除密码字段
-    if (isEdit && !submitData.password) {
-      delete submitData.password
-    }
-
-    // 如果是添加用户，添加创建时间和更新时间
-    if (!isEdit) {
-      const now = new Date().toISOString().slice(0, 19).replace('T', ' ')
-      submitData.createTime = now
-      submitData.updateTime = now
-      submitData.enabled = true
-    } else {
-      submitData.updateTime = new Date().toISOString().slice(0, 19).replace('T', ' ')
-    }
-
-    const response = await axios({
-      method: isEdit ? 'put' : 'post',
-      url: `/api/users${isEdit ? `/${formData.value.id}` : ''}`,
-      data: submitData
-    })
-    
-    if (response.code === 200) {
-      ElMessage.success(isEdit ? '编辑成功' : '添加成功')
+    const response = await request.post('/users/add', userForm.value)
+    if (response.data.code === 200) {
+      ElMessage.success('用户添加成功')
       dialogVisible.value = false
+      // 重新获取用户列表
       fetchUsers()
-    } else {
-      ElMessage.error(response.message || (isEdit ? '编辑失败' : '添加失败'))
     }
   } catch (error) {
-    console.error('提交表单失败:', error)
-    ElMessage.error(error.response?.data?.message || '提交失败')
+    if (error.response && error.response.data && error.response.data.message) {
+      ElMessage.error(error.response.data.message)
+    } else {
+      ElMessage.error('添加用户失败')
+    }
+    console.error('Error adding user:', error)
+  } finally {
+    submitting.value = false
   }
 }
 
-// 分页相关
-const handleSizeChange = (val) => {
-  pageSize.value = val
-  currentPage.value = 1
+// 搜索用户
+const handleSearch = () => {
+  // 搜索逻辑已通过computed属性实现
+  console.log('Searching with:', searchForm.value)
 }
 
-const handleCurrentChange = (val) => {
-  currentPage.value = val
+// 删除用户
+const handleDeleteUser = async (user) => {
+  try {
+    // 显示确认对话框
+    await ElMessageBox.confirm(
+      `确定要删除用户「${user.username}」吗？此操作不可撤销。`,
+      '确认删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    // 设置删除中状态
+    deletingId.value = user.id
+    
+    // 发送删除请求
+    const response = await request.delete(`/users/${user.id}`)
+    
+    if (response.data.code === 200) {
+      ElMessage.success('用户删除成功')
+      // 重新获取用户列表
+      fetchUsers()
+    }
+  } catch (error) {
+    // 如果是点击取消按钮，不显示错误信息
+    if (error !== 'cancel') {
+      if (error.response && error.response.data && error.response.data.message) {
+        ElMessage.error(error.response.data.message)
+      } else {
+        ElMessage.error('删除用户失败')
+      }
+    }
+  } finally {
+    // 重置删除状态
+    deletingId.value = null
+  }
 }
 
-// 初始化
+// 组件挂载时获取用户列表
 onMounted(() => {
-  console.log('Component mounted') // 添加日志
   fetchUsers()
 })
 </script>
@@ -405,33 +290,19 @@ onMounted(() => {
   padding: 20px;
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.add-user-btn {
+  margin-bottom: 20px;
 }
 
-.pagination-container {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
+.search-form {
+  margin-bottom: 20px;
 }
 
-.dialog-footer {
-  margin-top: 20px;
+:deep(.el-table__row) {
+  transition: background-color 0.3s;
 }
 
-.left-section {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.filter-select {
-  width: 150px;
-}
-
-.search-input {
-  width: 200px;
+:deep(.el-table__row:hover) {
+  background-color: #f5f7fa;
 }
 </style>

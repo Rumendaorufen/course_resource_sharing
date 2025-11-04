@@ -127,4 +127,49 @@ public class UserServiceImpl implements UserService {
     public List<User> getAllTeachers() {
         return userMapper.findByRole("TEACHER");
     }
+    
+    @Override
+    public List<User> getAllUsers() {
+        return userMapper.selectList(null);
+    }
+    
+    @Override
+    @Transactional
+    public void addUser(UserDTO userDTO) {
+        log.info("管理员添加新用户: {}", userDTO.getUsername());
+        User existUser = userMapper.findByUsername(userDTO.getUsername());
+        if (existUser != null) {
+            throw new ServiceException("用户名已存在");
+        }
+
+        User user = new User();
+        user.setUsername(userDTO.getUsername());
+        user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+        user.setRole(userDTO.getRole());
+        user.setRealName(userDTO.getRealName());
+        user.setEmail(userDTO.getEmail());
+        user.setPhone(userDTO.getPhone());
+        user.setEnabled(true);
+
+        userMapper.insert(user);
+        log.info("用户添加成功: {}", userDTO.getUsername());
+    }
+    
+    @Override
+    @Transactional
+    public void deleteUser(Long id) {
+        log.info("管理员删除用户: ID = {}", id);
+        User user = userMapper.selectById(id);
+        if (user == null) {
+            throw new ServiceException("用户不存在");
+        }
+        
+        // 不能删除管理员用户
+        if ("ADMIN".equals(user.getRole())) {
+            throw new ServiceException("不能删除管理员用户");
+        }
+        
+        userMapper.deleteById(id);
+        log.info("用户删除成功: {} (ID = {})", user.getUsername(), id);
+    }
 }

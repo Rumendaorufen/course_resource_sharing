@@ -61,4 +61,38 @@ public class UserController {
             .collect(Collectors.toList());
         return ApiResult.success(teacherVOs);
     }
+    
+    @GetMapping("/all")
+    @Operation(summary = "获取所有用户", description = "获取系统中的所有用户")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "成功获取用户列表")
+    })
+    public ApiResult<List<UserVO>> getAllUsers() {
+        List<User> users = userService.getAllUsers();
+        List<UserVO> userVOs = users.stream()
+            .map(user -> {
+                UserVO vo = new UserVO();
+                BeanUtils.copyProperties(user, vo);
+                return vo;
+            })
+            .collect(Collectors.toList());
+        return ApiResult.success(userVOs);
+    }
+    
+    @PostMapping("/add")
+    @Operation(summary = "新增用户", description = "管理员添加新用户（学生或教师）")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "用户添加成功")
+    })
+    public ApiResult<Void> addUser(@Validated @RequestBody UserDTO userDTO) {
+        userService.addUser(userDTO);
+        return ApiResult.success();
+    }
+    
+    @DeleteMapping("/{id}")
+    @Operation(summary = "删除用户", description = "管理员删除用户（不能删除管理员）")
+    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "用户删除成功")
+    })
+    public ApiResult<Void> deleteUser(@PathVariable Long id) {
+        userService.deleteUser(id);
+        return ApiResult.success();
+    }
 }

@@ -18,10 +18,10 @@
           <span>首页</span>
         </el-menu-item>
 
-<!--        <el-menu-item index="/userManagement" v-if="isAdmin">-->
-<!--          <el-icon><Management /></el-icon>-->
-<!--          <span>用户管理</span>-->
-<!--        </el-menu-item>-->
+        <el-menu-item index="/userManagement" v-if="isAdmin">
+          <el-icon><Management /></el-icon>
+          <span>用户管理</span>
+        </el-menu-item>
 
         <el-menu-item index="/courses" v-if="isAdmin">
           <el-icon><Management /></el-icon>
