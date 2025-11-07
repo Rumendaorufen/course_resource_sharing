@@ -90,21 +90,55 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void updateUser(Long id, UserDTO userDTO) {
+        log.info("更新用户信息: ID = {}", id);
         User user = userMapper.selectById(id);
         if (user == null) {
             throw new ServiceException("用户不存在");
         }
 
+        // 检查用户名是否已被其他用户使用
         User existUser = userMapper.findByUsername(userDTO.getUsername());
         if (existUser != null && !existUser.getId().equals(id)) {
             throw new ServiceException("用户名已存在");
         }
 
+        // 不能修改管理员用户的角色
+        if ("ADMIN".equals(user.getRole())) {
+            throw new ServiceException("不能修改管理员用户的信息");
+        }
+
+        // 更新基本信息
         user.setUsername(userDTO.getUsername());
         user.setRealName(userDTO.getRealName());
         user.setEmail(userDTO.getEmail());
+        user.setPhone(userDTO.getPhone());
+        user.setClassname(userDTO.getClassname());
+        
+        // 如果提供了角色信息且与当前角色不同，则更新角色
+        if (userDTO.getRole() != null && !userDTO.getRole().equals(user.getRole())) {
+            user.setRole(userDTO.getRole());
+            // 如果切换到非学生角色，清空班级信息
+            if (!"STUDENT".equals(userDTO.getRole())) {
+                user.setClassname(null);
+            }
+        }
+        
+        // 如果提供了密码且不为空，则更新密码
+        if (userDTO.getPassword() != null && !userDTO.getPassword().trim().isEmpty()) {
+            // 手动验证密码长度
+            if (userDTO.getPassword().length() < 6 || userDTO.getPassword().length() > 20) {
+                throw new ServiceException("密码长度必须在6-20个字符之间");
+            }
+            user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+        }
+        
+        // 学生用户需要验证班级信息
+        if ("STUDENT".equals(user.getRole()) && (user.getClassname() == null || user.getClassname().trim().isEmpty())) {
+            throw new ServiceException("学生用户必须填写班级信息");
+        }
 
         userMapper.updateById(user);
+        log.info("用户信息更新成功: {} (ID = {})", user.getUsername(), id);
     }
 
     @Override
@@ -142,6 +176,11 @@ public class UserServiceImpl implements UserService {
             throw new ServiceException("用户名已存在");
         }
 
+        // 学生用户需要验证班级信息
+        if ("STUDENT".equals(userDTO.getRole()) && (userDTO.getClassname() == null || userDTO.getClassname().trim().isEmpty())) {
+            throw new ServiceException("学生用户必须填写班级信息");
+        }
+
         User user = new User();
         user.setUsername(userDTO.getUsername());
         user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
@@ -149,6 +188,7 @@ public class UserServiceImpl implements UserService {
         user.setRealName(userDTO.getRealName());
         user.setEmail(userDTO.getEmail());
         user.setPhone(userDTO.getPhone());
+        user.setClassname(userDTO.getClassname());
         user.setEnabled(true);
 
         userMapper.insert(user);

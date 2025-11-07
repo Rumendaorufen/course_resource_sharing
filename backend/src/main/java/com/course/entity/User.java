@@ -23,6 +23,8 @@ public class User extends BaseEntity {
     
     private String phone;
     
+    private String classname;
+    
     private String avatar;
     
     private Boolean enabled = true;
