@@ -163,6 +163,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import request from '@/utils/request'
 import * as XLSX from 'xlsx'
+import { getStudentsInCourse } from '@/api/course'
 
 const route = useRoute()
 const router = useRouter()
@@ -172,6 +173,7 @@ const dialogVisible = ref(false)
 const gradeDialogVisible = ref(false)
 const assignment = ref(null)
 const submissions = ref([])
+const allCourseStudents = ref([])
 const currentSubmission = ref(null)
 const gradeForm = ref({
   score: 0,
@@ -179,9 +181,12 @@ const gradeForm = ref({
 })
 
 // 统计数据
-const totalStudents = computed(() => submissions.value.length)
+const totalStudents = computed(() => allCourseStudents.value.length)
 const submittedCount = computed(() => submissions.value.filter(s => s.status === 'SUBMITTED' || s.status === 'GRADED').length)
-const notSubmittedCount = computed(() => submissions.value.filter(s => !s.status || s.status !== 'SUBMITTED').length)
+const notSubmittedCount = computed(() => {
+  if (allCourseStudents.value.length === 0) return 0
+  return allCourseStudents.value.length - submittedCount.value
+})
 const lateSubmissionCount = computed(() => {
   if (!assignment.value) return 0
   const deadline = new Date(assignment.value.deadline)
@@ -198,6 +203,10 @@ const loadAssignment = async () => {
     const { data } = await request.get(`/assignments/${route.params.id}`)
     if (data.code === 200) {
       assignment.value = data.data
+      // 获取课程学生列表
+      if (assignment.value.courseId) {
+        await loadCourseStudents(assignment.value.courseId)
+      }
     } else {
       ElMessage.error(data.message || '获取作业信息失败')
     }
@@ -206,6 +215,18 @@ const loadAssignment = async () => {
     ElMessage.error('获取作业信息失败')
   } finally {
     loading.value = false
+  }
+}
+
+// 加载课程学生列表
+const loadCourseStudents = async (courseId) => {
+  try {
+    const response = await getStudentsInCourse(courseId)
+    if (response.data.code === 200) {
+      allCourseStudents.value = Array.isArray(response.data.data) ? response.data.data : []
+    }
+  } catch (error) {
+    console.error('获取课程学生列表失败:', error)
   }
 }
 
@@ -249,11 +270,52 @@ const viewSubmission = (submission) => {
 }
 
 // 下载附件
-const downloadFile = (submission) => {
-  if (!submission.attachmentUrl) return
-  const url = submission.attachmentUrl.replace('/files/', '/uploads/')
-  window.open(url, '_blank')
-}
+const downloadFile = async (submission) => {
+      if (!submission.attachmentUrl) return
+      
+      try {
+        // 使用fetch API下载文件
+        const response = await fetch(submission.attachmentUrl);
+        if (!response.ok) {
+          throw new Error('网络响应错误');
+        }
+        
+        // 获取文件名
+        let filename = submission.attachmentName;
+        if (!filename) {
+          // 从URL或响应头中提取文件名
+          const contentDisposition = response.headers.get('content-disposition');
+          if (contentDisposition) {
+            const match = contentDisposition.match(/filename="(.+)"/);
+            if (match && match[1]) {
+              filename = match[1];
+            }
+          }
+          if (!filename) {
+            // 使用URL中的文件名作为默认值
+            filename = submission.attachmentUrl.split('/').pop();
+          }
+        }
+        
+        // 将响应转换为Blob
+        const blob = await response.blob();
+        
+        // 创建下载链接并触发点击
+        const link = document.createElement('a');
+        const url = window.URL.createObjectURL(blob);
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        
+        // 清理
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(link);
+      } catch (error) {
+        console.error('下载文件失败:', error);
+        ElMessage.error('文件下载失败，请稍后重试');
+      }
+    }
 
 // 打开打分对话框
 const openGradeDialog = (submission) => {

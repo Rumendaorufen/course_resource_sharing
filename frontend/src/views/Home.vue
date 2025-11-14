@@ -51,7 +51,14 @@
           <span>我的作业</span>
         </el-menu-item>
 
-
+        <el-menu-item
+          v-if="user.role === 'TEACHER'"
+          index="/studentManagement"
+          :route="{ path: '/studentManagement' }"
+        >
+          <el-icon><User /></el-icon>
+          <span>学生管理</span>
+        </el-menu-item>
       </el-menu>
     </el-aside>
 
@@ -91,7 +98,8 @@ import {
   Management,
   Folder,
   Document,
-  ArrowDown
+  ArrowDown,
+  User
 } from '@element-plus/icons-vue'
 
 const store = useStore()

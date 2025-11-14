@@ -62,20 +62,50 @@ public class HomeworkSubmissionController {
         }
 
         // 检查附件大小（如果有）
-        if (StringUtils.hasText(submissionDTO.getAttachmentUrl()) && submissionDTO.getAttachmentSize() > 10 * 1024 * 1024) {
-            return ApiResult.error("附件大小不能超过10MB");
+        if (StringUtils.hasText(submissionDTO.getAttachmentUrl()) && submissionDTO.getAttachmentSize() > 100 * 1024 * 1024) {
+            return ApiResult.error("附件大小不能超过100MB");
         }
 
-        // 保存提交记录
-        HomeworkSubmission submission = new HomeworkSubmission();
-        BeanUtils.copyProperties(submissionDTO, submission);
-        submission.setStudentId(studentId);
-        submission.setStatus(SubmissionStatus.SUBMITTED);
-        submission.setSubmitTime(LocalDateTime.now());
-        submission.setCreateTime(LocalDateTime.now());
-        submission.setUpdateTime(LocalDateTime.now());
-
-        submissionService.saveSubmission(submission);
+        // 检查是否已存在同一学生对同一作业的提交记录
+        HomeworkSubmission existingSubmission = submissionService.getLatestSubmission(studentId, submissionDTO.getAssignmentId());
+        
+        if (existingSubmission != null) {
+            // 如果存在提交记录，检查是否已批改
+            if (SubmissionStatus.GRADED.equals(existingSubmission.getStatus())) {
+                return ApiResult.error("作业已批改，无法修改");
+            }
+            
+            // 更新现有记录
+            BeanUtils.copyProperties(submissionDTO, existingSubmission);
+            existingSubmission.setStudentId(studentId);
+            existingSubmission.setStatus(SubmissionStatus.SUBMITTED);
+            existingSubmission.setSubmitTime(LocalDateTime.now());
+            existingSubmission.setUpdateTime(LocalDateTime.now());
+            
+            // 确保附件信息正确更新
+            existingSubmission.setAttachmentUrl(submissionDTO.getAttachmentUrl());
+            existingSubmission.setAttachmentName(submissionDTO.getAttachmentName());
+            existingSubmission.setAttachmentSize(submissionDTO.getAttachmentSize());
+            
+            submissionService.updateSubmission(existingSubmission);
+        } else {
+            // 创建新记录
+            HomeworkSubmission submission = new HomeworkSubmission();
+            BeanUtils.copyProperties(submissionDTO, submission);
+            submission.setStudentId(studentId);
+            submission.setStatus(SubmissionStatus.SUBMITTED);
+            submission.setSubmitTime(LocalDateTime.now());
+            submission.setCreateTime(LocalDateTime.now());
+            submission.setUpdateTime(LocalDateTime.now());
+            
+            // 确保附件信息正确设置
+            submission.setAttachmentUrl(submissionDTO.getAttachmentUrl());
+            submission.setAttachmentName(submissionDTO.getAttachmentName());
+            submission.setAttachmentSize(submissionDTO.getAttachmentSize());
+            
+            submissionService.saveSubmission(submission);
+        }
+        
         return ApiResult.success(null);
     }
 
@@ -182,13 +212,26 @@ public class HomeworkSubmissionController {
 
     @Operation(summary = "获取作业的所有提交")
     @GetMapping("/homework/{homeworkId}")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'TEACHER')")
     public ApiResult<List<HomeworkSubmissionVO>> getHomeworkSubmissions(
             @PathVariable @Parameter(description = "作业ID") Long homeworkId) {
         List<HomeworkSubmission> submissions = submissionService.getHomeworkSubmissions(homeworkId);
         List<HomeworkSubmissionVO> submissionVOs = submissions.stream()
                 .map(this::convertToVO)
                 .collect(Collectors.toList());
+        
+        // 对于学生角色，只保留分数相关信息，隐藏具体内容
+        User currentUser = SecurityUtils.getCurrentUser();
+        if (currentUser != null && !SecurityUtils.hasRole("TEACHER")) {
+            for (HomeworkSubmissionVO vo : submissionVOs) {
+                // 只显示分数、学生姓名和批改时间，隐藏具体内容
+                vo.setContent(null);
+                vo.setAttachmentUrl(null);
+                vo.setAttachmentName(null);
+                vo.setAttachmentSize(null);
+            }
+        }
+        
         return ApiResult.success(submissionVOs);
     }
 
@@ -208,7 +251,7 @@ public class HomeworkSubmissionController {
         // 获取学生姓名
         User student = userService.getById(submission.getStudentId());
         if (student != null) {
-            vo.setStudentName(student.getUsername());
+            vo.setStudentName(student.getRealName() != null && !student.getRealName().isEmpty() ? student.getRealName() : student.getUsername());
         }
 
         return vo;

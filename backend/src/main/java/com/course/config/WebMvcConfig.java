@@ -17,6 +17,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
         // registry.addResourceHandler("/uploads/**")
         //         .addResourceLocations("file:uploads/");
         String uploadPath = System.getProperty("user.dir") + "/uploads";
+        // 添加/files/**映射，匹配配置中的文件下载基础URL
+        registry.addResourceHandler("/files/**")
+                .addResourceLocations("file:" + uploadPath + "/");
+        // 保留对/uploads/**的支持，确保前端替换后的路径也能工作
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:" + uploadPath + "/");
                 

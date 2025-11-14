@@ -44,6 +44,11 @@ public class HomeworkSubmissionVO {
     private String attachmentUrl;
 
     /**
+     * 附件名称
+     */
+    private String attachmentName;
+
+    /**
      * 附件大小（字节）
      */
     private Long attachmentSize;

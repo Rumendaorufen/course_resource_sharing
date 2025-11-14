@@ -34,9 +34,18 @@
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200">
+        <el-table-column label="操作" width="260">
           <template #default="{ row }">
-            <template v-if="row.submissionStatus !== 'GRADED'">
+            <template v-if="row.submissionStatus === 'GRADED' || row.submissionStatus === '已评分'">
+              <el-button
+                type="success"
+                size="small"
+                @click="handleViewGradedAssignment(row.id)"
+              >
+                查看详情
+              </el-button>
+            </template>
+            <template v-else>
               <el-button
                 v-if="row.submissionStatus === 'NOT_SUBMITTED' || row.submissionStatus === '未提交'"
                 type="primary"
@@ -46,14 +55,23 @@
               >
                 提交作业
               </el-button>
-              <el-button
-                v-else-if="row.submissionStatus === 'SUBMITTED' || row.submissionStatus === '已提交'"
-                type="info"
-                size="small"
-                @click="handleView(row.id)"
-              >
-                查看/修改
-              </el-button>
+              <template v-else-if="row.submissionStatus === 'SUBMITTED' || row.submissionStatus === '已提交'">
+                <el-button
+                  type="info"
+                  size="small"
+                  @click="handleView(row.id)"
+                >
+                  查看/修改
+                </el-button>
+                <el-button
+                  type="danger"
+                  size="small"
+                  @click="handleDeleteSubmission(row)"
+                  :disabled="isDeadlinePassed(row.deadline)"
+                >
+                  删除提交
+                </el-button>
+              </template>
             </template>
           </template>
         </el-table-column>
@@ -83,7 +101,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import request from '@/utils/request'
 
 const router = useRouter()
@@ -165,6 +183,51 @@ const handleView = (assignmentId) => {
     name: 'HomeworkSubmission',
     params: { id: assignmentId, mode: 'view' }
   })
+}
+
+const handleViewGradedAssignment = (assignmentId) => {
+  router.push({
+    name: 'GradedAssignmentDetail',
+    params: { id: assignmentId }
+  })
+}
+
+const handleDeleteSubmission = async (row) => {
+  try {
+    await ElMessageBox.confirm('确定要删除该作业提交吗？此操作不可撤销！', '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    // 首先获取学生对该作业的最新提交记录
+    const latestResponse = await request.get(
+      `/api/homework-submissions/student/${store.state.user.id}/assignment/${row.id}/latest`
+    )
+    
+    if (latestResponse.data.code !== 200 || !latestResponse.data.data) {
+      ElMessage.error('未找到提交记录')
+      return
+    }
+    
+    const submissionId = latestResponse.data.data.id
+    
+    // 然后调用删除API
+    const deleteResponse = await request.delete(`/api/homework-submissions/${submissionId}`)
+    
+    if (deleteResponse.data.code === 200) {
+      ElMessage.success('删除提交成功')
+      // 重新加载作业列表
+      loadAssignments()
+    } else {
+      ElMessage.error(deleteResponse.data.message || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除提交失败:', error)
+      ElMessage.error('删除提交失败，请稍后重试')
+    }
+  }
 }
 
 onMounted(() => {
