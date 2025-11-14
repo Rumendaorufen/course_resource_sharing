@@ -99,26 +99,27 @@
           </el-form-item>
           <el-form-item label="附件">
             <el-upload
-              :action="`${baseUrl}/api/file/upload`"
-              :headers="headers"
-              :data="{ type: 'homework' }"
-              name="file"
-              :before-upload="beforeUpload"
+              ref="uploadRef"
+              class="upload-demo"
+              :auto-upload="true"
+              :show-file-list="true"
+              :on-change="handleFileChange"
               :on-success="handleUploadSuccess"
-              :on-error="handleUploadError"
-              :on-progress="handleUploadProgress"
               :on-remove="handleRemoveFile"
-              :on-preview="handlePreviewFile"
+              :before-upload="beforeUploadFile"
+              :http-request="customUpload"
               :limit="1"
               :file-list="fileList"
-              :show-file-list="true"
               accept=".pdf,.doc,.docx,.txt,.zip,.rar"
-              ref="uploadRef"
             >
-              <el-button type="primary">上传附件</el-button>
+              <template #trigger>
+                <el-button type="primary">
+                  选择文件
+                </el-button>
+              </template>
               <template #tip>
                 <div class="el-upload__tip">
-                  文件大小不能超过10MB
+                  文件大小不能超过100MB，选择后自动上传
                 </div>
               </template>
             </el-upload>
@@ -235,8 +236,19 @@ const submitHomework = async () => {
 
 // 重置表单
 const resetForm = () => {
+  // 重置表单引用
   formRef.value?.resetFields()
-  form.value.attachments = []
+  
+  // 清空所有表单数据
+  form.value = {
+    content: '',
+    attachmentUrl: '',
+    attachmentName: '',
+    attachmentSize: 0
+  }
+  
+  // 清空文件列表
+  fileList.value = []
 }
 
 // 取消提交
@@ -247,7 +259,7 @@ const cancelSubmit = () => {
     type: 'warning'
   }).then(() => {
     resetForm()
-    router.push('/assignments')
+    router.push('/student-assignments')
   }).catch(() => {})
 }
 
@@ -288,7 +300,11 @@ const fetchAssignment = async () => {
       form.value.content = submissionRes.data.content || ''
       
       if (submissionRes.data.attachmentUrl) {
-        form.value.attachments = [submissionRes.data.attachmentUrl]
+        form.value.attachmentUrl = submissionRes.data.attachmentUrl
+        form.value.attachmentName = submissionRes.data.attachmentName || ''
+        form.value.attachmentSize = submissionRes.data.attachmentSize || 0
+        
+        fileList.value = [{ name: form.value.attachmentName || '附件', url: form.value.attachmentUrl }]
       }
     }
   } catch (error) {
@@ -307,25 +323,30 @@ const formatDate = (date) => {
 }
 
 // 文件上传相关
-const fileList = ref([])
-const uploading = ref(false)
-const uploadRef = ref(null)
+  const fileList = ref([])
+  const uploading = ref(false)
+  const uploadRef = ref(null)
 
-// 文件上传限制
-const uploadLimit = {
-  maxSize: 10 * 1024 * 1024, // 10MB
-  types: ['.pdf', '.doc', '.docx', '.txt', '.zip', '.rar']
-}
+  // 处理文件变化
+const handleFileChange = (file, fileList) => {
+  // 限制只能上传一个文件
+  if (fileList.length > 1) {
+    ElMessage.warning('只能上传一个文件');
+    return fileList.slice(-1);
+  }
+  return fileList;
+};
 
-// 文件上传前验证
-const beforeUpload = (file) => {
-  const isLt10M = file.size / 1024 / 1024 < 10;
-  if (!isLt10M) {
-    ElMessage.error('文件大小不能超过 10MB!');
+// 上传前检查
+const beforeUploadFile = (file) => {
+  // 检查文件大小
+  const isLt100M = file.size / 1024 / 1024 < 100;
+  if (!isLt100M) {
+    ElMessage.error('文件大小不能超过 100MB!');
     return false;
   }
   
-  // Check file type
+  // 检查文件类型
   const allowedTypes = ['.pdf', '.doc', '.docx', '.txt', '.zip', '.rar'];
   const extension = '.' + file.name.split('.').pop().toLowerCase();
   if (!allowedTypes.includes(extension)) {
@@ -336,35 +357,56 @@ const beforeUpload = (file) => {
   return true;
 };
 
-// 文件上传成功
-const handleUploadSuccess = (response, uploadFile) => {
-  console.log('Upload success:', response, uploadFile);
-  if (response.code === 200) {
-    ElMessage.success('文件上传成功');
-    form.value.attachmentUrl = response.data;
-    form.value.attachmentName = response.data.split('/').pop(); // 从URL中提取文件名
-    form.value.attachmentSize = uploadFile.size;
-    fileList.value = [{
-      name: form.value.attachmentName,
-      url: form.value.attachmentUrl,
-      size: uploadFile.size
-    }];
-  } else {
-    ElMessage.error(response.data.message || '文件上传失败');
+// 自定义上传方法
+const customUpload = async (options) => {
+  uploading.value = true;
+  const file = options.file;
+  
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await request.post('/file/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        Authorization: `Bearer ${store.state.token}`
+      },
+      onUploadProgress: (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+        console.log(`上传进度: ${percentCompleted}%`);
+        options.onProgress({ percent: percentCompleted });
+      }
+    });
+    
+    if (response.data.code === 200) {
+      options.onSuccess(response.data);
+    } else {
+      options.onError(new Error(response.data.message || '文件上传失败'));
+    }
+  } catch (error) {
+    console.error('文件上传失败:', error);
+    options.onError(error);
+  } finally {
+    uploading.value = false;
   }
 };
 
-// 文件上传失败
-const handleUploadError = (error, file) => {
-  console.error('Upload error:', error);
-  const errorMessage = error.response?.data?.message || '文件上传失败，请重试';
-  ElMessage.error(errorMessage);
+// 上传成功处理
+const handleUploadSuccess = (response, file) => {
+  ElMessage.success('文件上传成功');
+  form.value.attachmentUrl = response.data;
+  form.value.attachmentName = file.name;
+  form.value.attachmentSize = file.size;
+  
+  // 更新文件列表
+  fileList.value = [{
+    name: file.name,
+    url: response.data,
+    size: file.size,
+    uid: file.uid,
+    status: 'success'
+  }];
 };
-
-// 文件上传进度
-const handleUploadProgress = (event) => {
-  uploading.value = true
-}
 
 // 移除文件
 const handleRemoveFile = () => {
@@ -372,14 +414,7 @@ const handleRemoveFile = () => {
   form.value.attachmentName = '';
   form.value.attachmentSize = 0;
   fileList.value = [];
-}
-
-// 预览文件
-const handlePreviewFile = (file) => {
-  if (file.url) {
-    window.open(file.url)
-  }
-}
+};
 
 // 生命周期
 onMounted(() => {

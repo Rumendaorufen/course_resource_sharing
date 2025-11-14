@@ -45,6 +45,11 @@ public class HomeworkSubmission {
     private String attachmentUrl;
     
     /**
+     * 附件名称
+     */
+    private String attachmentName;
+    
+    /**
      * 附件大小
      */
     private Long attachmentSize;

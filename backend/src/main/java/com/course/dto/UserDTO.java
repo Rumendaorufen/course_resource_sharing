@@ -12,8 +12,8 @@ public class UserDTO {
     @Size(min = 4, max = 20, message = "用户名长度必须在4-20个字符之间")
     private String username;
 
-    @NotBlank(message = "密码不能为空")
-    @Size(min = 6, max = 20, message = "密码长度必须在6-20个字符之间")
+    // 密码可以为空，表示不修改密码
+    // 使用自定义验证器，只有在密码不为空时才验证长度
     private String password;
 
     @NotBlank(message = "角色不能为空")
@@ -26,4 +26,7 @@ public class UserDTO {
     private String email;
     
     private String phone;
+    
+    // 班级名称，仅学生用户需要
+    private String classname;
 }

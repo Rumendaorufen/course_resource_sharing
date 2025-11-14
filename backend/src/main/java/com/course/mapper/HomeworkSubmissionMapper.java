@@ -15,7 +15,7 @@ public interface HomeworkSubmissionMapper extends BaseMapper<HomeworkSubmission>
     List<HomeworkSubmission> findByAssignmentId(Long assignmentId);
     
     @Select("SELECT hs.*, a.title as homework_title, a.description as homework_description, " +
-            "a.deadline, c.name as course_name, hs.feedback " +
+            "a.deadline, c.name as course_name " +
             "FROM homework_submission hs " +
             "LEFT JOIN assignment a ON hs.assignment_id = a.id " +
             "LEFT JOIN course c ON a.course_id = c.id " +
@@ -28,7 +28,7 @@ public interface HomeworkSubmissionMapper extends BaseMapper<HomeworkSubmission>
     List<HomeworkSubmission> findByStudentId2(Long studentId);
     
     @Select("SELECT id, assignment_id, student_id, student_name, content, " +
-            "attachment_url, attachment_size, status, score, comment, feedback, " +
+            "attachment_url, attachment_name, attachment_size, status, score, comment, feedback, " +
             "submit_time, grade_time, create_time, update_time " +
             "FROM homework_submission " +
             "WHERE assignment_id = #{assignmentId} AND student_id = #{studentId} " +

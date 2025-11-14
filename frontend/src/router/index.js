@@ -26,6 +26,12 @@ const routes = [
         component: () => import('../views/UserManagement.vue'),
         meta: { roles: ['ADMIN'] }
       },
+      {
+        path: 'studentManagement',
+        name: 'StudentManagement',
+        component: () => import('../views/StudentManagement.vue'),
+        meta: { roles: ['TEACHER'] }
+      },
      
       {
         path: 'courses',
@@ -62,6 +68,12 @@ const routes = [
         path: 'homework-submission/:id',
         name: 'HomeworkSubmission',
         component: () => import('../views/HomeworkSubmission.vue'),
+        meta: { roles: ['STUDENT'] }
+      },
+      {
+        path: 'graded-assignment-detail/:id',
+        name: 'GradedAssignmentDetail',
+        component: () => import('../views/GradedAssignmentDetail.vue'),
         meta: { roles: ['STUDENT'] }
       }
     ]

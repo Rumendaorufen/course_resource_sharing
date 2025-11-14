@@ -3,16 +3,56 @@
 <mapper namespace="com.course.mapper.UserMapper">
     <select id="findByUsername" resultType="com.course.entity.User">
         SELECT 
-            id, username, password, real_name, role, email, phone
+            id, username, password, real_name, role, email, phone, classname
         FROM user 
         WHERE username = #{username}
     </select>
     
     <select id="findByRole" resultType="com.course.entity.User">
         SELECT 
-            id, username, real_name, role, email, phone
+            id, username, real_name, role, email, phone, classname
         FROM user 
         WHERE role = #{role}
         ORDER BY real_name
+    </select>
+    
+    <select id="findByClassname" resultType="com.course.entity.User">
+        SELECT 
+            id, username, real_name, role, email, phone, classname
+        FROM user 
+        WHERE role = 'STUDENT' AND classname = #{classname}
+        ORDER BY real_name
+    </select>
+    
+    <select id="findStudentsByCourseId" resultType="com.course.entity.User">
+        SELECT 
+            u.id, u.username, u.real_name, u.role, u.email, u.phone, u.classname
+        FROM user u
+        JOIN student_course sc ON u.id = sc.student_id
+        WHERE u.role = 'STUDENT' AND sc.course_id = #{courseId}
+        ORDER BY u.real_name
+    </select>
+    
+    <select id="findStudentsNotInCourse" resultType="com.course.entity.User">
+        SELECT 
+            id, username, real_name, role, email, phone, classname
+        FROM user 
+        WHERE role = 'STUDENT' 
+        AND id NOT IN (
+            SELECT student_id FROM student_course WHERE course_id = #{courseId}
+        )
+        <if test="ew != null">
+            <if test="ew.sqlSegment != null and ew.sqlSegment != ''">
+                AND ${ew.sqlSegment}
+            </if>
+        </if>
+        ORDER BY real_name
+    </select>
+    
+    <select id="findAllClassNames" resultType="java.lang.String">
+        SELECT DISTINCT classname 
+        FROM user 
+        WHERE role = 'STUDENT' AND classname IS NOT NULL AND classname != ''
+        ORDER BY classname
     </select>
 </mapper>

@@ -8,6 +8,7 @@
     <el-menu-item index="/courses">课程管理</el-menu-item>
     <el-menu-item index="/resources">资源管理</el-menu-item>
     <el-menu-item index="/homework">作业管理</el-menu-item>
+    <el-menu-item index="/studentManagement" v-if="userRole === 'ADMIN' || userRole === 'TEACHER'">学生管理</el-menu-item>
     
     <div class="flex-grow" />
     
@@ -49,6 +50,7 @@ export default defineComponent({
     const activeIndex = computed(() => route.path)
     const isAuthenticated = computed(() => store.getters.isAuthenticated)
     const currentUser = computed(() => store.getters.currentUser)
+    const userRole = computed(() => store.getters.user?.role)
 
     const handleLogout = () => {
       store.commit('logout')
@@ -59,6 +61,7 @@ export default defineComponent({
       activeIndex,
       isAuthenticated,
       currentUser,
+      userRole,
       handleLogout
     }
   }

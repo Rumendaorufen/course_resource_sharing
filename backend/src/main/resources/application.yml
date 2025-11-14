@@ -89,7 +89,7 @@ file:
   upload:
     base-path: ${FILE_UPLOAD_PATH:./uploads}
     allowed-types: 
-    max-size: 52428800  
+    max-size: 104857600  
   download:
     base-url: /files
 
