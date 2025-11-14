@@ -134,6 +134,13 @@
           <el-button
             type="primary"
             link
+            @click="viewResourceDetail(row.id)"
+          >
+            查看
+          </el-button>
+          <el-button
+            type="success"
+            link
             @click="handleDownload(row)"
           >
             <el-icon><Download /></el-icon>
@@ -164,6 +171,30 @@
         @current-change="handleCurrentChange"
       />
     </div>
+
+    <!-- 资源详情对话框 -->
+    <el-dialog
+      v-model="detailDialogVisible"
+      title="资源详情"
+      width="500px"
+      :close-on-click-modal="false"
+      center
+    >
+      <div v-if="currentResource" class="resource-detail">
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="资源名称">{{ currentResource.name }}</el-descriptions-item>
+          <el-descriptions-item label="资源描述">{{ currentResource.description || '无描述' }}</el-descriptions-item>
+          <el-descriptions-item label="课程名称">{{ currentResource.courseName }}</el-descriptions-item>
+          <el-descriptions-item label="上传者">{{ currentResource.uploaderName }}</el-descriptions-item>
+          <el-descriptions-item label="文件大小">{{ formatFileSize(currentResource.fileSize) }}</el-descriptions-item>
+          <el-descriptions-item label="下载次数">{{ currentResource.downloadCount || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="上传时间">{{ formatDateTime(currentResource.createTime) }}</el-descriptions-item>
+        </el-descriptions>
+        <div class="dialog-footer" style="margin-top: 20px; text-align: center;">
+          <el-button type="primary" @click="handleDownload(currentResource)">下载资源</el-button>
+        </div>
+      </div>
+    </el-dialog>
 
     <!-- 上传资源对话框 -->
     <el-dialog
@@ -283,6 +314,8 @@ const searchKeyword = ref('')
 const resources = ref([])
 const courses = ref([])
 const uploadDialogVisible = ref(false)
+const detailDialogVisible = ref(false)
+const currentResource = ref(null)
 const resourceFormRef = ref(null)
 const uploadRef = ref(null)
 const fileList = ref([])
@@ -525,6 +558,25 @@ const fetchResources = async () => {
   } catch (error) {
     console.error('获取资源列表失败:', error)
     ElMessage.error('获取资源列表失败: ' + (error.response?.data?.message || error.message))
+  } finally {
+    loading.value = false
+  }
+}
+
+// 获取资源详情
+const viewResourceDetail = async (id) => {
+  try {
+    loading.value = true
+    const response = await service.get(`/resource/${id}`)
+    if (response.data.code === 200) {
+      currentResource.value = response.data.data
+      detailDialogVisible.value = true
+    } else {
+      ElMessage.error(response.data.message || '获取资源详情失败')
+    }
+  } catch (error) {
+    console.error('获取资源详情失败:', error)
+    ElMessage.error('获取资源详情失败: ' + (error.response?.data?.message || error.message))
   } finally {
     loading.value = false
   }

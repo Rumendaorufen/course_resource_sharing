@@ -104,27 +104,14 @@ public class CourseController {
     }
 
     @GetMapping("/all")
-    @Operation(summary = "获取当前教师课程列表", description = "获取当前登录教师的课程列表")
+    @Operation(summary = "获取所有课程列表", description = "获取系统中所有课程列表，所有用户均可访问")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "获取成功"),
         @ApiResponse(responseCode = "401", description = "未授权")
     })
     public ApiResult<List<Course>> getAllCourses() {
-        // 获取当前登录用户信息
-        UserDetailsImpl userDetails = (UserDetailsImpl) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        User currentUser = userDetails.getUser();
-        
-        // 检查用户角色
-        if ("TEACHER".equals(currentUser.getRole())) {
-            // 对于教师用户，只返回该教师的课程
-            return ApiResult.success(courseService.getTeacherCourses(currentUser.getId()));
-        } else if ("ADMIN".equals(currentUser.getRole())) {
-            // 对于管理员用户，仍然返回所有课程
-            return ApiResult.success(courseService.list());
-        }
-        
-        // 其他角色默认返回空列表
-        return ApiResult.success(new ArrayList<>());
+        // 返回所有课程，所有用户均可访问
+        return ApiResult.success(courseService.list());
     }
 
     @GetMapping("/teacher/{teacherId}")

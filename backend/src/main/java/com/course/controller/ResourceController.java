@@ -74,6 +74,20 @@ public class ResourceController {
     @Value("${file.upload.base-path}")
     private String uploadDir;
 
+    @GetMapping("/{id}")
+    @Operation(summary = "获取资源详情", description = "根据ID获取资源详细信息")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "获取成功"),
+        @ApiResponse(responseCode = "404", description = "资源不存在")
+    })
+    public ApiResult<Resource> getResourceDetail(@PathVariable @Parameter(description = "资源ID", required = true) Long id) {
+        Resource resource = resourceService.getResourceById(id);
+        if (resource == null) {
+            throw new ResourceNotFoundException("Resource", "id", id);
+        }
+        return ApiResult.success(resource);
+    }
+
     @PostMapping
     @RequireRole({"TEACHER", "ADMIN", "STUDENT"})
     @Operation(summary = "上传资源", description = "上传新的资源文件")
