@@ -240,4 +240,118 @@ public class CourseServiceImpl implements CourseService {
     public boolean isStudentEnrolledInCourse(Long studentId, Long courseId) {
         return studentCourseMapper.isEnrolled(studentId, courseId);
     }
+
+    @Override
+    @Transactional
+    public void addStudentsByClass(Long courseId, String classname) {
+        // 验证课程是否存在
+        Course course = courseMapper.selectById(courseId);
+        if (course == null) {
+            throw new ServiceException("课程不存在");
+        }
+
+        // 获取该班级的所有学生
+        List<User> students = userMapper.findByClassname(classname);
+        if (students.isEmpty()) {
+            throw new ServiceException("该班级没有学生");
+        }
+
+        // 批量添加学生到课程
+        for (User student : students) {
+            // 检查是否已经在课程中
+            if (!studentCourseMapper.isEnrolled(student.getId(), courseId)) {
+                StudentCourse studentCourse = new StudentCourse();
+                studentCourse.setStudentId(student.getId());
+                studentCourse.setCourseId(courseId);
+                studentCourseMapper.insert(studentCourse);
+            }
+        }
+    }
+
+    @Override
+    @Transactional
+    public void addStudentToCourse(Long courseId, Long studentId) {
+        // 验证课程是否存在
+        Course course = courseMapper.selectById(courseId);
+        if (course == null) {
+            throw new ServiceException("课程不存在");
+        }
+
+        // 验证学生是否存在
+        User student = userMapper.selectById(studentId);
+        if (student == null || !"STUDENT".equals(student.getRole())) {
+            throw new ServiceException("学生不存在");
+        }
+
+        // 检查是否已经在课程中
+        if (studentCourseMapper.isEnrolled(studentId, courseId)) {
+            throw new ServiceException("学生已经在课程中");
+        }
+
+        // 添加学生到课程
+        StudentCourse studentCourse = new StudentCourse();
+        studentCourse.setStudentId(studentId);
+        studentCourse.setCourseId(courseId);
+        studentCourseMapper.insert(studentCourse);
+    }
+
+    @Override
+    @Transactional
+    public void removeStudentFromCourse(Long courseId, Long studentId) {
+        // 检查学生是否在课程中
+        if (!studentCourseMapper.isEnrolled(studentId, courseId)) {
+            throw new ServiceException("学生不在课程中");
+        }
+
+        // 从课程中移除学生
+        studentCourseMapper.delete(
+            new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<StudentCourse>()
+                .eq("student_id", studentId)
+                .eq("course_id", courseId)
+        );
+    }
+
+    @Override
+    public List<User> getStudentsInCourse(Long courseId) {
+        // 验证课程是否存在
+        Course course = courseMapper.selectById(courseId);
+        if (course == null) {
+            throw new ServiceException("课程不存在");
+        }
+
+        // 获取课程中的学生列表
+        return userMapper.findStudentsByCourseId(courseId);
+    }
+
+    @Override
+    public List<User> getStudentsNotInCourse(Long courseId, String keyword, String classname) {
+        // 验证课程是否存在
+        Course course = courseMapper.selectById(courseId);
+        if (course == null) {
+            throw new ServiceException("课程不存在");
+        }
+
+        // 构建查询条件
+        com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<User> queryWrapper = new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<>();
+        queryWrapper.eq("role", "STUDENT");
+        
+        if (keyword != null && !keyword.isEmpty()) {
+            queryWrapper.and(wrapper -> 
+                wrapper.like("username", keyword)
+                       .or().like("real_name", keyword)
+            );
+        }
+        
+        if (classname != null && !classname.isEmpty()) {
+            queryWrapper.eq("classname", classname);
+        }
+
+        // 获取不在课程中的学生
+        return userMapper.findStudentsNotInCourse(courseId, queryWrapper);
+    }
+
+    @Override
+    public List<String> getAllClassNames() {
+        return userMapper.findAllClassNames();
+    }
 }

@@ -4,6 +4,7 @@ import com.course.common.annotation.RequireRole;
 import com.course.common.api.ApiResult;
 import com.course.dto.CourseDTO;
 import com.course.entity.Course;
+import com.course.entity.User;
 import com.course.security.UserDetailsImpl;
 import com.course.service.CourseService;
 import com.course.vo.CourseVO;
@@ -17,6 +18,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -102,13 +104,27 @@ public class CourseController {
     }
 
     @GetMapping("/all")
-    @Operation(summary = "获取所有课程列表", description = "获取系统中所有课程的列表")
+    @Operation(summary = "获取当前教师课程列表", description = "获取当前登录教师的课程列表")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "获取成功"),
         @ApiResponse(responseCode = "401", description = "未授权")
     })
     public ApiResult<List<Course>> getAllCourses() {
-        return ApiResult.success(courseService.list());
+        // 获取当前登录用户信息
+        UserDetailsImpl userDetails = (UserDetailsImpl) org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User currentUser = userDetails.getUser();
+        
+        // 检查用户角色
+        if ("TEACHER".equals(currentUser.getRole())) {
+            // 对于教师用户，只返回该教师的课程
+            return ApiResult.success(courseService.getTeacherCourses(currentUser.getId()));
+        } else if ("ADMIN".equals(currentUser.getRole())) {
+            // 对于管理员用户，仍然返回所有课程
+            return ApiResult.success(courseService.list());
+        }
+        
+        // 其他角色默认返回空列表
+        return ApiResult.success(new ArrayList<>());
     }
 
     @GetMapping("/teacher/{teacherId}")
@@ -173,5 +189,89 @@ public class CourseController {
     public ApiResult<Void> dropCourse(@PathVariable @Parameter(description = "课程ID", required = true) Long id, @RequestParam @Parameter(description = "学生ID", required = true) Long studentId) {
         courseService.dropCourse(studentId, id);
         return ApiResult.success();
+    }
+
+    /**
+     * 按班级批量添加学生到课程
+     */
+    @PostMapping("/{courseId}/students/class")
+    @RequireRole("TEACHER")
+    @Operation(summary = "按班级批量添加学生到课程", description = "教师按班级批量添加学生到指定课程")
+    public ApiResult<Void> addStudentsByClass(@PathVariable @Parameter(description = "课程ID", required = true) Long courseId, @RequestBody ClassRequest request) {
+        courseService.addStudentsByClass(courseId, request.getClassname());
+        return ApiResult.success();
+    }
+    
+    /**
+     * 添加单个学生到课程
+     */
+    @PostMapping("/{courseId}/students/{studentId}")
+    @RequireRole("TEACHER")
+    @Operation(summary = "添加单个学生到课程", description = "教师添加单个学生到指定课程")
+    public ApiResult<Void> addStudentToCourse(@PathVariable @Parameter(description = "课程ID", required = true) Long courseId, @PathVariable @Parameter(description = "学生ID", required = true) Long studentId) {
+        courseService.addStudentToCourse(courseId, studentId);
+        return ApiResult.success();
+    }
+    
+    /**
+     * 从课程中移除学生
+     */
+    @DeleteMapping("/{courseId}/students/{studentId}")
+    @RequireRole("TEACHER")
+    @Operation(summary = "从课程中移除学生", description = "教师从指定课程中移除学生")
+    public ApiResult<Void> removeStudentFromCourse(@PathVariable @Parameter(description = "课程ID", required = true) Long courseId, @PathVariable @Parameter(description = "学生ID", required = true) Long studentId) {
+        courseService.removeStudentFromCourse(courseId, studentId);
+        return ApiResult.success();
+    }
+    
+    /**
+     * 获取课程中的学生列表
+     */
+    @GetMapping("/{courseId}/students")
+    @Operation(summary = "获取课程中的学生列表", description = "获取指定课程中的所有学生列表")
+    public ApiResult<List<User>> getStudentsInCourse(@PathVariable @Parameter(description = "课程ID", required = true) Long courseId) {
+        return ApiResult.success(courseService.getStudentsInCourse(courseId));
+    }
+    
+    /**
+     * 获取不在课程中的学生列表
+     */
+    @GetMapping("/{courseId}/students/not-enrolled")
+    @Operation(summary = "获取不在课程中的学生列表", description = "获取未在指定课程中的学生列表，可通过关键词和班级筛选")
+    public ApiResult<List<User>> getStudentsNotInCourse(@PathVariable @Parameter(description = "课程ID", required = true) Long courseId,
+                                                    @RequestParam(required = false) @Parameter(description = "搜索关键词") String keyword,
+                                                    @RequestParam(required = false) @Parameter(description = "班级名称") String classname) {
+        return ApiResult.success(courseService.getStudentsNotInCourse(courseId, keyword, classname));
+    }
+    
+    /**
+     * 获取所有班级名称列表
+     */
+    @GetMapping("/classnames")
+    @Operation(summary = "获取所有班级名称列表", description = "获取系统中所有的班级名称列表")
+    public ApiResult<List<String>> getAllClassNames() {
+        return ApiResult.success(courseService.getAllClassNames());
+    }
+    
+    /**
+     * 检查学生是否已选课
+     */
+    @GetMapping("/student/enrolled/{courseId}")
+    @Operation(summary = "检查学生是否已选课", description = "检查指定学生是否已选择指定课程")
+    public ApiResult<Boolean> isStudentEnrolled(@PathVariable @Parameter(description = "课程ID", required = true) Long courseId, @RequestParam @Parameter(description = "学生ID", required = true) Long studentId) {
+        return ApiResult.success(courseService.isStudentEnrolledInCourse(studentId, courseId));
+    }
+    
+    // 班级请求参数类
+    static class ClassRequest {
+        private String classname;
+        
+        public String getClassname() {
+            return classname;
+        }
+        
+        public void setClassname(String classname) {
+            this.classname = classname;
+        }
     }
 }

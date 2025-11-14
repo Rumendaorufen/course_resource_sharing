@@ -118,12 +118,28 @@
         <el-form-item label="邮箱" prop="email">
           <el-input v-model="userForm.email" placeholder="请输入邮箱" />
         </el-form-item>
-        <el-form-item label="手机号">
+        <el-form-item label="手机号" prop="phone">
           <el-input v-model="userForm.phone" placeholder="请输入手机号（可选）" />
         </el-form-item>
         <!-- 班级字段，仅学生用户显示 -->
         <el-form-item v-if="userForm.role === 'STUDENT'" label="班级" prop="classname">
-          <el-input v-model="userForm.classname" placeholder="请输入班级名称" />
+          <el-select 
+            v-model="selectedClass" 
+            placeholder="请选择班级" 
+            @change="handleClassChange"
+            style="width: 100%"
+          >
+            <el-option value="" label="请选择班级" />
+            <el-option v-for="className in classNames" :key="className" :label="className" :value="className" />
+            <el-option value="NEW_CLASS" label="添加新班级" />
+          </el-select>
+          <el-input 
+            v-if="selectedClass === 'NEW_CLASS'" 
+            v-model="newClassName" 
+            placeholder="请输入新班级名称" 
+            style="margin-top: 10px;"
+            @input="updateClassnameFromNew()"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -184,6 +200,10 @@ const userForm = ref({
   classname: ''
 })
 
+// 班级选择相关
+const selectedClass = ref('')
+const newClassName = ref('')
+
 // 表单验证规则
 const userRules = {
   username: [
@@ -222,6 +242,27 @@ const userRules = {
     { required: true, message: '请输入邮箱', trigger: 'blur' },
     { type: 'email', message: '邮箱格式不正确', trigger: 'blur' }
   ],
+  phone: [
+    {
+      required: false,
+      message: '请输入手机号',
+      trigger: 'blur'
+    },
+    {
+      pattern: /^1[3-9]\d{9}$/,
+      message: '请输入正确的手机号格式',
+      trigger: 'blur',
+      validator: (rule, value, callback) => {
+        if (!value) {
+          callback(); // 手机号为空时通过验证
+        } else if (/^1[3-9]\d{9}$/.test(value)) {
+          callback();
+        } else {
+          callback(new Error('请输入正确的手机号格式'));
+        }
+      }
+    }
+  ],
   classname: [
     { 
       validator: (rule, value, callback) => {
@@ -242,11 +283,32 @@ const handleRoleChange = () => {
   // 如果切换到非学生角色，清空班级信息
   if (userForm.value.role !== 'STUDENT') {
     userForm.value.classname = '';
+    selectedClass.value = '';
+    newClassName.value = '';
   }
   // 重置表单验证状态
   if (userFormRef.value) {
     userFormRef.value.clearValidate('classname');
   }
+}
+
+// 处理班级选择变化
+const handleClassChange = () => {
+  if (selectedClass.value === '') {
+    userForm.value.classname = '';
+    newClassName.value = '';
+  } else if (selectedClass.value === 'NEW_CLASS') {
+    userForm.value.classname = '';
+    newClassName.value = '';
+  } else {
+    userForm.value.classname = selectedClass.value;
+    newClassName.value = '';
+  }
+}
+
+// 从新班级输入更新classname
+const updateClassnameFromNew = () => {
+  userForm.value.classname = newClassName.value;
 }
 
 // 过滤后的用户列表
@@ -322,6 +384,8 @@ const showAddDialog = () => {
     phone: '',
     classname: ''
   }
+  selectedClass.value = ''
+  newClassName.value = ''
   if (userFormRef.value) {
     userFormRef.value.resetFields()
   }
@@ -376,6 +440,9 @@ const handleEditUser = (user) => {
     phone: user.phone || '',
     classname: user.classname || ''
   }
+  // 设置班级选择
+  selectedClass.value = user.classname || ''
+  newClassName.value = ''
   // 打开对话框
   dialogVisible.value = true
 }
