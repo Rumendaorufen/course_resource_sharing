@@ -77,4 +77,22 @@ public class DashboardController {
             return ApiResult.error(e.getMessage());
         }
     }
+    
+    @GetMapping("/dashboard/monthly-stats")
+    @Operation(summary = "获取月度统计数据", description = "获取最近6个月的资源和作业统计数据")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "获取成功"),
+        @ApiResponse(responseCode = "401", description = "未授权")
+    })
+    public ApiResult<Map<String, List<?>>> getMonthlyStats() {
+        log.debug("Received request for monthly stats");
+        try {
+            Map<String, List<?>> monthlyStats = dashboardService.getMonthlyStats();
+            log.debug("Retrieved monthly stats: {}", monthlyStats);
+            return ApiResult.success(monthlyStats);
+        } catch (Exception e) {
+            log.error("Error getting monthly stats", e);
+            return ApiResult.error(e.getMessage());
+        }
+    }
 }

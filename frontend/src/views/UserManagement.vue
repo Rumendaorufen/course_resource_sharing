@@ -2,6 +2,86 @@
   <div class="user-management">
     <h2>用户管理</h2>
     
+    <!-- 数据统计卡片 -->
+    <el-row :gutter="20" class="stats-cards">
+      <el-col :span="6">
+        <el-card shadow="hover" class="stat-card">
+          <div class="card-content">
+            <div class="card-icon success">
+              <el-icon><User /></el-icon>
+            </div>
+            <div class="card-text">
+              <div class="card-number">{{ totalUsers }}</div>
+              <div class="card-label">总用户数</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover" class="stat-card">
+          <div class="card-content">
+            <div class="card-icon primary">
+              <el-icon><UserTag /></el-icon>
+            </div>
+            <div class="card-text">
+              <div class="card-number">{{ teacherCount }}</div>
+              <div class="card-label">教师用户</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover" class="stat-card">
+          <div class="card-content">
+            <div class="card-icon info">
+              <el-icon><UserFilled /></el-icon>
+            </div>
+            <div class="card-text">
+              <div class="card-number">{{ studentCount }}</div>
+              <div class="card-label">学生用户</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="6">
+        <el-card shadow="hover" class="stat-card">
+          <div class="card-content">
+            <div class="card-icon warning">
+              <el-icon><UserCheck /></el-icon>
+            </div>
+            <div class="card-text">
+              <div class="card-number">{{ activeUsers }}</div>
+              <div class="card-label">活跃用户</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+    
+    <!-- 数据可视化区域 -->
+    <el-row :gutter="20" class="charts-section">
+      <el-col :span="12">
+        <el-card shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <span>用户类型分布</span>
+            </div>
+          </template>
+          <div ref="userTypeChart" class="chart-container"></div>
+        </el-card>
+      </el-col>
+      <el-col :span="12">
+        <el-card shadow="hover">
+          <template #header>
+            <div class="card-header">
+              <span>用户活跃度趋势</span>
+            </div>
+          </template>
+          <div ref="userActivityChart" class="chart-container"></div>
+        </el-card>
+      </el-col>
+    </el-row>
+    
     <!-- 添加用户按钮 -->
     <el-button type="primary" @click="showAddDialog" class="add-user-btn">
       <el-icon><Plus /></el-icon>
@@ -163,9 +243,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, User, UserFilled } from '@element-plus/icons-vue'
+import * as echarts from 'echarts'
 import request from '../utils/request'
 
 // 状态变量
@@ -176,6 +257,12 @@ const dialogVisible = ref(false)
 const editingUser = ref(null)
 const userFormRef = ref(null)
 const users = ref([])
+
+// 图表引用
+const userTypeChart = ref(null)
+const userActivityChart = ref(null)
+const userTypeChartInstance = ref(null)
+const userActivityChartInstance = ref(null)
 
 // 分页相关
 const currentPage = ref(1)
@@ -333,6 +420,26 @@ const filteredUsers = computed(() => {
   })
 })
 
+// 统计数据计算属性
+const totalUsers = computed(() => {
+  return users.value.filter(user => user.role !== 'ADMIN').length
+})
+const studentCount = computed(() => {
+  return users.value.filter(user => user.role === 'STUDENT').length
+})
+const teacherCount = computed(() => {
+  return users.value.filter(user => user.role === 'TEACHER').length
+})
+const activeUsers = computed(() => {
+  // 假设根据用户创建时间和当前时间的差距来判断活跃状态
+  const now = new Date()
+  const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30))
+  return users.value.filter(user => {
+    const createTime = new Date(user.createTime || Date.now())
+    return createTime > thirtyDaysAgo && user.role !== 'ADMIN'
+  }).length
+})
+
 // 分页后的用户列表
 const paginatedUsers = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
@@ -488,13 +595,36 @@ const handleDeleteUser = async (user) => {
       ElMessage.success('用户删除成功')
       // 重新获取用户列表
       fetchUsers()
+    } else {
+      // 处理非200状态码但没有抛出异常的情况
+      if (response.data && response.data.message) {
+        ElMessage.error(response.data.message)
+      } else {
+        ElMessage.error('删除用户失败：未知错误')
+      }
     }
   } catch (error) {
     // 如果是点击取消按钮，不显示错误信息
     if (error !== 'cancel') {
-      if (error.response && error.response.data && error.response.data.message) {
-        ElMessage.error(error.response.data.message)
+      console.log('删除用户错误详情:', error)
+      // 增强错误处理逻辑，确保所有类型的错误都能正确显示
+      if (error.response) {
+        // 服务器返回了错误响应
+        if (error.response.data && error.response.data.message) {
+          ElMessage.error(error.response.data.message)
+        } else if (error.response.data) {
+          ElMessage.error(JSON.stringify(error.response.data))
+        } else {
+          ElMessage.error(`请求失败: ${error.response.status}`)
+        }
+      } else if (error.request) {
+        // 请求已发送但没有收到响应
+        ElMessage.error('网络错误，请检查网络连接')
+      } else if (error.message) {
+        // 请求配置出错
+        ElMessage.error(error.message)
       } else {
+        // 其他未知错误
         ElMessage.error('删除用户失败')
       }
     }
@@ -504,15 +634,238 @@ const handleDeleteUser = async (user) => {
   }
 }
 
+// 初始化用户类型分布图表（饼图）
+const initUserTypeChart = () => {
+  if (!userTypeChart.value) return
+  
+  // 销毁已有实例
+  if (userTypeChartInstance.value) {
+    userTypeChartInstance.value.dispose()
+  }
+  
+  userTypeChartInstance.value = echarts.init(userTypeChart.value)
+  
+  // 统计用户类型分布
+  const roleStats = {
+    '学生': users.value.filter(user => user.role === 'STUDENT').length,
+    '教师': users.value.filter(user => user.role === 'TEACHER').length,
+    '管理员': users.value.filter(user => user.role === 'ADMIN').length
+  }
+  
+  const data = Object.entries(roleStats).map(([key, value]) => ({
+    name: key,
+    value
+  }))
+  
+  const option = {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{a} <br/>{b}: {c} ({d}%)'
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
+      textStyle: {
+        fontSize: 12
+      }
+    },
+    series: [
+      {
+        name: '用户类型',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        center: ['60%', '50%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 10,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: false,
+          position: 'center'
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: 18,
+            fontWeight: 'bold'
+          }
+        },
+        labelLine: {
+          show: false
+        },
+        data: data
+      }
+    ],
+    color: ['#67C23A', '#409EFF', '#E6A23C']
+  }
+  
+  userTypeChartInstance.value.setOption(option)
+}
+
+// 初始化用户活跃度趋势图表（折线图）
+const initUserActivityChart = () => {
+  if (!userActivityChart.value) return
+  
+  // 销毁已有实例
+  if (userActivityChartInstance.value) {
+    userActivityChartInstance.value.dispose()
+  }
+  
+  userActivityChartInstance.value = echarts.init(userActivityChart.value)
+  
+  // 生成最近6个月的月份数组
+  const months = []
+  const now = new Date()
+  const monthData = []
+  
+  // 初始化过去6个月的数据结构
+  for (let i = 5; i >= 0; i--) {
+    const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const monthName = `${monthDate.getMonth() + 1}月`
+    const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`
+    
+    months.push(monthName)
+    monthData.push({
+      monthKey,
+      monthName,
+      startDate: new Date(monthDate.getFullYear(), monthDate.getMonth(), 1),
+      endDate: new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59)
+    })
+  }
+  
+  // 基于真实用户数据统计活跃度，按创建时间分组
+  const studentData = monthData.map(month => {
+    return users.value.filter(user => {
+      if (user.role !== 'STUDENT' || !user.createTime) return false
+      const createDate = new Date(user.createTime)
+      return createDate >= month.startDate && createDate <= month.endDate
+    }).length
+  })
+  
+  const teacherData = monthData.map(month => {
+    return users.value.filter(user => {
+      if (user.role !== 'TEACHER' || !user.createTime) return false
+      const createDate = new Date(user.createTime)
+      return createDate >= month.startDate && createDate <= month.endDate
+    }).length
+  })
+  
+  // 移除默认数据，仅使用从后端获取的真实用户数据
+  console.log('User activity stats calculated:', { studentData, teacherData })
+  
+  const option = {
+    tooltip: {
+      trigger: 'axis'
+    },
+    legend: {
+      data: ['学生', '教师']
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: months
+    },
+    yAxis: {
+      type: 'value'
+    },
+    series: [
+      {
+        name: '学生',
+        type: 'line',
+        stack: '总量',
+        data: studentData,
+        smooth: true,
+        itemStyle: {
+          color: '#67C23A'
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(103, 194, 58, 0.3)' },
+            { offset: 1, color: 'rgba(103, 194, 58, 0.1)' }
+          ])
+        }
+      },
+      {
+        name: '教师',
+        type: 'line',
+        stack: '总量',
+        data: teacherData,
+        smooth: true,
+        itemStyle: {
+          color: '#409EFF'
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(64, 158, 255, 0.3)' },
+            { offset: 1, color: 'rgba(64, 158, 255, 0.1)' }
+          ])
+        }
+      }
+    ]
+  }
+  
+  userActivityChartInstance.value.setOption(option)
+}
+
+// 更新图表
+const updateCharts = () => {
+  // 延迟执行以确保DOM已更新
+  setTimeout(() => {
+    initUserTypeChart()
+    initUserActivityChart()
+  }, 100)
+}
+
+// 监听用户数据变化，更新图表
+watch(() => users.value.length, () => {
+  updateCharts()
+})
+
+// 监听窗口大小变化
+const handleResize = () => {
+  if (userTypeChartInstance.value) {
+    userTypeChartInstance.value.resize()
+  }
+  if (userActivityChartInstance.value) {
+    userActivityChartInstance.value.resize()
+  }
+}
+
 // 组件挂载时获取用户列表
 onMounted(() => {
   fetchUsers()
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  if (userTypeChartInstance.value) {
+    userTypeChartInstance.value.dispose()
+  }
+  if (userActivityChartInstance.value) {
+    userActivityChartInstance.value.dispose()
+  }
 })
 </script>
 
 <style scoped>
 .user-management {
   padding: 20px;
+}
+
+h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 20px;
 }
 
 .add-user-btn {
@@ -535,5 +888,107 @@ onMounted(() => {
 
 :deep(.el-table__row:hover) {
   background-color: #f5f7fa;
+}
+
+/* 统计卡片样式 */
+.stats-cards {
+  margin-bottom: 20px;
+}
+
+.charts-section {
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.card-content {
+  display: flex;
+  align-items: center;
+  padding: 20px 0;
+}
+
+.card-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  margin-right: 15px;
+}
+
+.card-icon.primary {
+  background-color: rgba(64, 158, 255, 0.1);
+  color: #409EFF;
+}
+
+.card-icon.success {
+  background-color: rgba(103, 194, 58, 0.1);
+  color: #67C23A;
+}
+
+.card-icon.warning {
+  background-color: rgba(230, 162, 60, 0.1);
+  color: #E6A23C;
+}
+
+.card-icon.info {
+  background-color: rgba(144, 147, 153, 0.1);
+  color: #909399;
+}
+
+.card-text {
+  flex: 1;
+}
+
+.card-number {
+  font-size: 28px;
+  font-weight: bold;
+  color: #303133;
+  margin-bottom: 5px;
+}
+
+.card-label {
+  color: #909399;
+  font-size: 14px;
+}
+
+/* 图表容器样式 */
+.chart-container {
+  width: 100%;
+  height: 350px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 500;
+  color: #303133;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .chart-container {
+    height: 300px;
+  }
+  
+  .card-number {
+    font-size: 24px;
+  }
+  
+  .card-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
 }
 </style>

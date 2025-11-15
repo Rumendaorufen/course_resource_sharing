@@ -24,4 +24,10 @@ public interface DashboardService {
      * @return 最新的资源列表
      */
     List<ResourceVO> getRecentResources();
+    
+    /**
+     * 获取月度统计数据
+     * @return 包含月份、资源数量、作业数量的统计信息
+     */
+    Map<String, List<?>> getMonthlyStats();
 }

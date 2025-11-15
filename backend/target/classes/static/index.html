@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课程资源共享系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.5.95/css/materialdesignicons.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary" v-if="isAuthenticated">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">课程资源共享系统</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" @click="currentView = 'courses'">
+                                <i class="mdi mdi-book-open-page-variant"></i> 课程
+                            </a>
+                        </li>
+                        <li class="nav-item" v-if="userRole === 'TEACHER'">
+                            <a class="nav-link" href="#" @click="currentView = 'resources'">
+                                <i class="mdi mdi-file-multiple"></i> 资源管理
+                            </a>
+                        </li>
+                        <li class="nav-item" v-if="userRole === 'TEACHER'">
+                            <a class="nav-link" href="#" @click="currentView = 'homework'">
+                                <i class="mdi mdi-notebook"></i> 作业管理
+                            </a>
+                        </li>
+                        <li class="nav-item" v-if="userRole === 'STUDENT'">
+                            <a class="nav-link" href="#" @click="currentView = 'submissions'">
+                                <i class="mdi mdi-file-document-edit"></i> 我的作业
+                            </a>
+                        </li>
+                    </ul>
+                    <div class="d-flex">
+                        <span class="navbar-text me-3">
+                            <i class="mdi mdi-account"></i> {{username}}
+                        </span>
+                        <button class="btn btn-outline-light" @click="logout">
+                            <i class="mdi mdi-logout"></i> 退出
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主要内容区域 -->
+        <div class="container mt-4">
+            <!-- 登录/注册表单 -->
+            <div v-if="!isAuthenticated" class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <ul class="nav nav-tabs card-header-tabs">
+                                <li class="nav-item">
+                                    <a class="nav-link" :class="{ active: !isRegister }" href="#" @click="isRegister = false">登录</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" :class="{ active: isRegister }" href="#" @click="isRegister = true">注册</a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="card-body">
+                            <!-- 登录表单 -->
+                            <form v-if="!isRegister" @submit.prevent="login">
+                                <div class="mb-3">
+                                    <label class="form-label">用户名</label>
+                                    <input type="text" class="form-control" v-model="loginForm.username" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">密码</label>
+                                    <input type="password" class="form-control" v-model="loginForm.password" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">登录</button>
+                            </form>
+                            <!-- 注册表单 -->
+                            <form v-else @submit.prevent="register">
+                                <div class="mb-3">
+                                    <label class="form-label">用户名</label>
+                                    <input type="text" class="form-control" v-model="registerForm.username" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">密码</label>
+                                    <input type="password" class="form-control" v-model="registerForm.password" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">真实姓名</label>
+                                    <input type="text" class="form-control" v-model="registerForm.realName" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">邮箱</label>
+                                    <input type="email" class="form-control" v-model="registerForm.email" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">角色</label>
+                                    <select class="form-select" v-model="registerForm.role" required>
+                                        <option value="STUDENT">学生</option>
+                                        <option value="TEACHER">教师</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">注册</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 已认证用户的内容区域 -->
+            <div v-else>
+                <component :is="currentView"
+                          :user-role="userRole"
+                          @show-message="showMessage">
+                </component>
+            </div>
+        </div>
+
+        <!-- 消息提示 -->
+        <div class="toast-container position-fixed bottom-0 end-0 p-3">
+            <div class="toast" ref="toast" role="alert">
+                <div class="toast-header">
+                    <strong class="me-auto">提示</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">{{ message }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.2.31/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/components/courses.js"></script>
+    <script src="/js/components/resources.js"></script>
+    <script src="/js/components/homework.js"></script>
+    <script src="/js/components/submissions.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>
