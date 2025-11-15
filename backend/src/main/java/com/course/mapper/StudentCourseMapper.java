@@ -18,7 +18,7 @@ public interface StudentCourseMapper extends BaseMapper<StudentCourse> {
      * @param queryWrapper 查询条件
      * @return 是否存在
      */
-    @Select("SELECT EXISTS(${ew.customSqlSegment})")
+    @Select("SELECT EXISTS(SELECT 1 FROM student_course ${ew.customSqlSegment})")
     boolean exists(@Param("ew") Wrapper<StudentCourse> queryWrapper);
     
     /**

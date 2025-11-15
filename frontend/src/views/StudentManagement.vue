@@ -190,13 +190,18 @@
 <script>
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getCourses, getStudentsInCourse, getStudentsNotInCourse, 
+import { useStore } from 'vuex'
+import { getCourses, getTeacherCourses, getStudentsInCourse, getStudentsNotInCourse, 
          addStudentsByClass, addStudentToCourse, removeStudentFromCourse, 
          getAllClassNames } from '../api/course'
 
 export default {
   name: 'StudentManagement',
   setup() {
+    const store = useStore()
+    const currentUser = computed(() => store.getters.user)
+    const userRole = computed(() => currentUser.value?.role)
+    
     // 响应式数据
     const selectedCourseId = ref('')
     const courses = ref([])
@@ -224,7 +229,19 @@ export default {
     // 获取课程列表
     const fetchCourses = async () => {
       try {
-        const response = await getCourses()
+        let response;
+        
+        // 根据用户角色调用不同的接口
+        if (userRole.value === 'TEACHER' && currentUser.value?.id) {
+          // 教师角色调用获取教师课程的接口
+          console.log('教师角色，调用教师专用课程接口')
+          response = await getTeacherCourses(currentUser.value.id)
+        } else {
+          // 其他角色调用获取全部课程的接口
+          console.log('非教师角色，调用全部课程接口')
+          response = await getCourses()
+        }
+        
         console.log('API返回的课程数据:', response)
         console.log('response.data类型:', typeof response.data)
         console.log('response.data.data内容:', response.data.data)
@@ -431,7 +448,9 @@ export default {
       addStudentsByClassMethod,
       fetchClassStudents,
       addSingleStudent,
-      removeStudent
+      removeStudent,
+      currentUser,
+      userRole
     }
   }
 }
