@@ -1,9 +1,12 @@
 package com.course.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.course.common.exception.ServiceException;
 import com.course.dto.LoginDTO;
 import com.course.dto.UserDTO;
+import com.course.entity.StudentCourse;
 import com.course.entity.User;
+import com.course.mapper.StudentCourseMapper;
 import com.course.mapper.UserMapper;
 import com.course.security.JwtTokenUtil;
 import com.course.security.UserDetailsImpl;
@@ -27,6 +30,7 @@ import java.util.List;
 public class UserServiceImpl implements UserService {
 
     private final UserMapper userMapper;
+    private final StudentCourseMapper studentCourseMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenUtil jwtTokenUtil;
     private final AuthenticationManager authenticationManager;
@@ -195,6 +199,8 @@ public class UserServiceImpl implements UserService {
         log.info("用户添加成功: {}", userDTO.getUsername());
     }
     
+
+    
     @Override
     @Transactional
     public void deleteUser(Long id) {
@@ -209,7 +215,22 @@ public class UserServiceImpl implements UserService {
             throw new ServiceException("不能删除管理员用户");
         }
         
-        userMapper.deleteById(id);
-        log.info("用户删除成功: {} (ID = {})", user.getUsername(), id);
+        try {
+            // 处理学生用户的课程关联
+            if ("STUDENT".equals(user.getRole())) {
+                // 删除学生课程关联记录
+                studentCourseMapper.delete(
+                    new QueryWrapper<StudentCourse>().eq("student_id", id)
+                );
+                log.info("已删除学生 {} (ID = {}) 的课程关联记录", user.getUsername(), id);
+            }
+            
+            // 最后删除用户
+            userMapper.deleteById(id);
+            log.info("用户删除成功: {} (ID = {})", user.getUsername(), id);
+        } catch (Exception e) {
+            log.error("删除用户失败: ID = {}, 错误信息: {}", id, e.getMessage());
+            throw new ServiceException("该用户存在其他关联数据，无法直接删除。请先清除相关关联后重试。");
+        }
     }
 }

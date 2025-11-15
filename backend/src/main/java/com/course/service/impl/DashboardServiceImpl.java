@@ -13,9 +13,8 @@ import com.course.vo.ResourceVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -91,5 +90,52 @@ public class DashboardServiceImpl implements DashboardService {
                 return vo;
             })
             .collect(Collectors.toList());
+    }
+    
+    @Override
+    public Map<String, List<?>> getMonthlyStats() {
+        Map<String, List<?>> result = new HashMap<>();
+        
+        // 获取最近6个月的月份标签
+        List<String> months = new ArrayList<>();
+        Calendar cal = Calendar.getInstance();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM");
+        
+        for (int i = 5; i >= 0; i--) {
+            Calendar tempCal = (Calendar) cal.clone();
+            tempCal.add(Calendar.MONTH, -i);
+            months.add(sdf.format(tempCal.getTime()));
+        }
+        
+        result.put("months", months);
+        
+        // 获取每个月的资源数量
+        List<Integer> resourceCounts = new ArrayList<>();
+        // 获取每个月的作业数量
+        List<Integer> assignmentCounts = new ArrayList<>();
+        
+        for (String month : months) {
+            String startDate = month + "-01";
+            String endDate = month + "-31";
+            
+            // 统计当月资源数量
+            LambdaQueryWrapper<Resource> resourceWrapper = new LambdaQueryWrapper<Resource>()
+                .apply("DATE_FORMAT(create_time, '%Y-%m-%d') >= {0}", startDate)
+                .apply("DATE_FORMAT(create_time, '%Y-%m-%d') <= {0}", endDate);
+            Long resourceCount = resourceMapper.selectCount(resourceWrapper);
+            resourceCounts.add(resourceCount.intValue());
+            
+            // 统计当月作业数量
+            LambdaQueryWrapper<Assignment> assignmentWrapper = new LambdaQueryWrapper<Assignment>()
+                .apply("DATE_FORMAT(create_time, '%Y-%m-%d') >= {0}", startDate)
+                .apply("DATE_FORMAT(create_time, '%Y-%m-%d') <= {0}", endDate);
+            Long assignmentCount = assignmentMapper.selectCount(assignmentWrapper);
+            assignmentCounts.add(assignmentCount.intValue());
+        }
+        
+        result.put("resources", resourceCounts);
+        result.put("assignments", assignmentCounts);
+        
+        return result;
     }
 }
