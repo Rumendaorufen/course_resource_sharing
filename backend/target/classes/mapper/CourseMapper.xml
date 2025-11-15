@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.course.mapper.CourseMapper">
+    
+    <resultMap id="CourseResultMap" type="com.course.entity.Course">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="description" property="description"/>
+        <result column="teacher_id" property="teacherId"/>
+    </resultMap>
+
+    <select id="findByIdWithDetails" resultType="java.util.Map">
+        SELECT 
+            c.id,
+            c.name,
+            c.description,
+            c.teacher_id,
+            u.real_name as teacher_real_name,
+            COUNT(DISTINCT sc.student_id) as studentCount,
+            COUNT(DISTINCT r.id) as resourceCount,
+            COUNT(DISTINCT h.id) as homeworkCount
+        FROM course c
+        LEFT JOIN user u ON c.teacher_id = u.id
+        LEFT JOIN student_course sc ON c.id = sc.course_id
+        LEFT JOIN resource r ON c.id = r.course_id
+        LEFT JOIN homework h ON c.id = h.course_id
+        WHERE c.id = #{id}
+        GROUP BY c.id, c.name, c.description, c.teacher_id, u.real_name
+    </select>
+
+    <select id="findAllWithDetails" resultType="java.util.Map">
+        SELECT 
+            c.id,
+            c.name,
+            c.description,
+            c.teacher_id,
+            u.real_name as teacher_real_name,
+            COUNT(DISTINCT sc.student_id) as studentCount,
+            COUNT(DISTINCT r.id) as resourceCount,
+            COUNT(DISTINCT h.id) as homeworkCount
+        FROM course c
+        LEFT JOIN user u ON c.teacher_id = u.id
+        LEFT JOIN student_course sc ON c.id = sc.course_id
+        LEFT JOIN resource r ON c.id = r.course_id
+        LEFT JOIN homework h ON c.id = h.course_id
+        GROUP BY c.id, c.name, c.description, c.teacher_id, u.real_name
+    </select>
+
+    <select id="selectById" resultMap="CourseResultMap">
+        SELECT id, name, description, teacher_id
+        FROM course
+        WHERE id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="com.course.entity.Course" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO course (name, description, teacher_id)
+        VALUES (#{name}, #{description}, #{teacherId})
+    </insert>
+
+    <update id="updateById">
+        UPDATE course
+        <set>
+            <if test="et.name != null">name = #{et.name},</if>
+            <if test="et.description != null">description = #{et.description},</if>
+            <if test="et.teacherId != null">teacher_id = #{et.teacherId}</if>
+        </set>
+        WHERE id = #{et.id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM course WHERE id = #{id}
+    </delete>
+</mapper>
