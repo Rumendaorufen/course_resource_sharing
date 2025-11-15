@@ -5,6 +5,11 @@ export const getCourses = () => {
   return request.get('/courses/all')
 }
 
+// 获取教师的课程列表
+export const getTeacherCourses = (teacherId) => {
+  return request.get(`/courses/teacher/${teacherId}`)
+}
+
 // 获取课程中的学生列表
 export const getStudentsInCourse = (courseId) => {
   return request.get(`/courses/${courseId}/students`)
