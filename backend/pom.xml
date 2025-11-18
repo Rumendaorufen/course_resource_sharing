@@ -27,6 +27,7 @@
         <springdoc.version>1.7.0</springdoc.version>
         <caffeine.version>2.9.3</caffeine.version>
         <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+        <knife4j.version>4.5.0</knife4j.version>
     </properties>
 
     <dependencies>
@@ -99,11 +100,11 @@
             <version>${caffeine.version}</version>
         </dependency>
 
-        <!-- SpringDoc OpenAPI -->
+        <!-- Knife4j OpenAPI3 Starter (已包含springdoc-openapi) -->
         <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-ui</artifactId>
-            <version>${springdoc.version}</version>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-openapi3-spring-boot-starter</artifactId>
+            <version>${knife4j.version}</version>
         </dependency>
 
         <!-- Lombok -->

@@ -14,19 +14,34 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .addResourceLocations("classpath:/static/");
                 
         // 配置文件上传目录的访问
-        // registry.addResourceHandler("/uploads/**")
-        //         .addResourceLocations("file:uploads/");
         String uploadPath = System.getProperty("user.dir") + "/uploads";
-        // 添加/files/**映射，匹配配置中的文件下载基础URL
         registry.addResourceHandler("/files/**")
                 .addResourceLocations("file:" + uploadPath + "/");
-        // 保留对/uploads/**的支持，确保前端替换后的路径也能工作
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:" + uploadPath + "/");
                 
-        // 配置Swagger UI资源路径
-        registry.addResourceHandler("/swagger-ui/**")
-                .addResourceLocations("classpath:/META-INF/resources/webjars/springfox-swagger-ui/")
-                .resourceChain(false);
+        // Knife4j 4.0.0 官方推荐配置
+        // 配置doc.html入口文件
+        registry.addResourceHandler("/doc.html")
+                .addResourceLocations("classpath:/META-INF/resources/");
+        
+        // 配置webjars资源
+        registry.addResourceHandler("/webjars/**")
+                .addResourceLocations("classpath:/META-INF/resources/webjars/");
+                
+        // 配置Knife4j静态资源
+        registry.addResourceHandler("/knife4j/**")
+                .addResourceLocations("classpath:/META-INF/resources/knife4j/");
+                
+        // 配置API文档相关资源，确保返回正确的JSON格式
+        registry.addResourceHandler("/v3/api-docs/**")
+                .addResourceLocations("classpath:/META-INF/resources/");
+                
+        registry.addResourceHandler("/swagger-resources/**")
+                .addResourceLocations("classpath:/META-INF/resources/");
+                
+        // 配置swagger-config.json资源，这是Knife4j 4.0.0必需的配置
+        registry.addResourceHandler("/swagger-config")
+                .addResourceLocations("classpath:/META-INF/resources/");
     }
 }

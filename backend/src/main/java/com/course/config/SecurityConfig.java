@@ -55,7 +55,10 @@ public class SecurityConfig {
                 // 公开接口
                 .antMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .antMatchers("/auth/login", "/auth/register").permitAll()
-                .antMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                // 首先放行所有Swagger和Knife4j相关路径 - 考虑context-path的影响
+                .antMatchers("/doc.html", "/v3/api-docs/**", "/webjars/**", "/swagger-resources/**", "/knife4j/**", "/favicon.*", "/swagger-ui/**").permitAll()
+                // 同时添加带context-path的路径配置
+                .antMatchers("/api/doc.html", "/api/v3/api-docs/**", "/api/webjars/**", "/api/swagger-resources/**", "/api/knife4j/**", "/api/favicon.*", "/api/swagger-ui/**").permitAll()
                 .antMatchers("/files/**").permitAll()
                 // 只读接口
                 .antMatchers(HttpMethod.GET, "/courses/**", "/resources/**", "/dashboard/**").permitAll()

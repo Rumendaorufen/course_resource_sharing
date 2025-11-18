@@ -76,7 +76,8 @@ security:
   require-ssl: false  
   basic:
     enabled: false
-  ignored: /api/auth/**, /swagger-ui/**, /v3/api-docs/**
+  # 在Spring Boot 2.7.x中，security.ignored已弃用，主要通过SecurityConfig.java中的配置控制
+  ignored: /auth/**, /swagger-ui/**, /v3/api-docs/**, /doc.html, /webjars/**, /knife4j/**, /favicon.ico, /favicon.svg
 
 jwt:
   secret: ${JWT_SECRET:your-256-bit-secret-key-here-for-course-resource-sharing-platform}
@@ -124,13 +125,54 @@ logging:
     max-size: 10MB
     max-history: 7
 
+# Knife4j配置 - Knife4j 4.5.0官方推荐配置，适配context-path
+knife4j:
+  enable: true
+  # 标题
+  title: 课程资源共享平台 API文档
+  # 作者
+  author: 开发团队
+  # 描述
+  description: 提供课程资源共享平台的所有API接口说明
+  # 版本
+  version: 1.0.0
+  setting:
+    swaggerModelName:
+      enabled: true
+    # 4.5.0版本新增配置项
+    language: zh_cn
+    # 启用模型扫描
+    enableSwaggerModelsScan: true
+    # 启用调试模式
+    enableDebug: true
+  # 适配context-path的配置
+  swagger:
+    # 明确指定base-url，包含context-path
+    base-url: /api
+  # Knife4j UI页面的基础认证（可选）
+  basic:
+    enable: true
+    username: admin
+    password: admin
+  
+# SpringDoc配置 - 与Knife4j 4.5.0兼容配置，特别处理context-path
 springdoc:
   api-docs:
     enabled: true
+    path: /v3/api-docs
+    # 确保生成正确的JSON格式
+    groups:
+      enabled: true
+    # 确保正确处理响应格式
+    writer-with-default-pretty-printer: true
   swagger-ui:
-    path: /swagger-ui.html
     enabled: true
-    operationsSorter: method
+  # 明确配置服务器URL，确保正确处理context-path
+  servers:
+    - url: http://localhost:8020/api
+      description: Local Development Server with context-path
+  packages-to-scan: com.course.controller
+  paths-to-match: /**
   show-actuator: false
 
 cors:
