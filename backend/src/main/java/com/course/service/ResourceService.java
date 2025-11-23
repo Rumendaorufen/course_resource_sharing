@@ -6,6 +6,7 @@ import com.course.entity.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 public interface ResourceService {
     /**
@@ -71,4 +72,19 @@ public interface ResourceService {
      * 清除资源缓存
      */
     void clearResourceCache();
+
+    /**
+     * 统计每个课程的资源数量
+     */
+    List<java.util.Map<String, Object>> countResourcesByCourse();
+
+    /**
+     * 获取所有资源的下载量总和
+     */
+    List<Map<String, Object>> getTotalDownloadCount();
+
+    /**
+     * 获取下载量前30%的资源按课程分组统计下载量
+     */
+    List<Map<String, Object>> getTopDownloadResourcesByCourse();
 }

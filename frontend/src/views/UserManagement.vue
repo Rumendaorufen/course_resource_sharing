@@ -120,7 +120,8 @@
         <template #default="scope">
           <el-tag v-if="scope.row.role === 'ADMIN'" type="danger">管理员</el-tag>
           <el-tag v-else-if="scope.row.role === 'TEACHER'" type="primary">教师</el-tag>
-          <el-tag v-else type="info">学生</el-tag>
+          <el-tag v-else-if="scope.row.role === 'STUDENT'" type="warning">学生</el-tag>
+          <el-tag v-else type="info">未知</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="classname" label="班级" width="120">
@@ -135,7 +136,7 @@
       <el-table-column prop="enabled" label="状态" width="80">
         <template #default="scope">
           <el-tag v-if="scope.row.enabled" type="success">启用</el-tag>
-          <el-tag v-else type="warning">禁用</el-tag>
+          <el-tag v-else type="danger">禁用</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="createTime" label="创建时间" width="180" />

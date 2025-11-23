@@ -7,9 +7,18 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import 'element-plus/dist/index.css'
 import './assets/main.css'
 
+// 引入主题管理器
+import { initTheme, watchSystemTheme } from './utils/theme'
+
 import App from './App.vue'
 import router from './router'
 import store from './store'
+
+// 初始化主题
+initTheme()
+
+// 监听系统主题变化
+const unwatchSystemTheme = watchSystemTheme()
 
 const app = createApp(App)
 
@@ -24,10 +33,20 @@ app.config.errorHandler = (err, vm, info) => {
   console.error('Error info:', info)
 }
 
+// 全局属性
+app.config.globalProperties.$theme = {
+  initTheme,
+  watchSystemTheme: unwatchSystemTheme
+}
+
+// 挂载插件
 app.use(store)
 app.use(router)
 app.use(ElementPlus, {
   locale: zhCn,
+  // 自定义配置
+  size: 'default',
+  zIndex: 3000
 })
 
 // 等待路由准备就绪后再挂载应用

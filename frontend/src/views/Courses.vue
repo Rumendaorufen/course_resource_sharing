@@ -26,60 +26,35 @@
     </div>
     
     <!-- 数据统计卡片 -->
-    <el-row :gutter="20" class="stats-cards">
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="card-content">
-            <div class="card-icon success">
-              <el-icon><Document /></el-icon>
-            </div>
-            <div class="card-text">
-              <div class="card-number">{{ coursesCount }}</div>
-              <div class="card-label">总课程数</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="card-content">
-            <div class="card-icon primary">
-              <el-icon><User /></el-icon>
-            </div>
-            <div class="card-text">
-              <div class="card-number">{{ teachersCount }}</div>
-              <div class="card-label">教师人数</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="card-content">
-            <div class="card-icon warning">
-              <el-icon><Filter /></el-icon>
-            </div>
-            <div class="card-text">
-              <div class="card-number">{{ filteredCourses.length }}</div>
-              <div class="card-label">筛选后课程</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="card-content">
-            <div class="card-icon info">
-              <el-icon><Fold /></el-icon>
-            </div>
-            <div class="card-text">
-              <div class="card-number">{{ categoryCount }}</div>
-              <div class="card-label">课程类别数</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <div class="stats-cards">
+      <DataCard
+        title="总课程数"
+        :value="coursesCount"
+        icon="Document"
+        :trend="coursesTrend"
+        trendType="increase"
+      />
+      <DataCard
+        title="教师人数"
+        :value="teachersCount"
+        icon="User"
+        color="primary"
+        :trend="teacherTrend"
+        trendType="increase"
+      />
+      <DataCard
+        title="筛选后课程"
+        :value="filteredCourses.length"
+        icon="Filter"
+        color="warning"
+      />
+      <DataCard
+        title="课程类别数"
+        :value="categoryCount"
+        icon="Fold"
+        color="info"
+      />
+    </div>
     
     <!-- 数据可视化区域 -->
     <el-row :gutter="20" class="charts-section">
@@ -103,40 +78,32 @@
           <div ref="teacherChart" class="chart-container"></div>
         </el-card>
       </el-col>
+
     </el-row>
 
     <!-- 课程表格 -->
-    <el-table :data="paginatedCourses" border style="width: 100%; margin-top: 20px;">
-      <el-table-column prop="id" label="课程ID" width="100" />
-      <el-table-column prop="name" label="课程名称" />
-      <el-table-column prop="description" label="课程描述" />
-      <el-table-column prop="teacherName" label="教师" width="120" />
-      <el-table-column label="操作" width="200" align="center">
-        <template #default="{ row }">
-          <el-button type="primary" link @click="handleEdit(row)">
-            <el-icon><Edit /></el-icon>
-            编辑
-          </el-button>
-          <el-button type="danger" link @click="handleDelete(row)">
-            <el-icon><Delete /></el-icon>
-            删除
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <!-- 分页组件 -->
-    <div class="pagination-container">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 30, 50]"
-        layout="total, sizes, prev, pager, next, jumper"
-        :total="filteredCourses.length"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
-    </div>
+    <AdvancedTable
+      :data="filteredCourses"
+      :columns="columns"
+      :loading="false"
+      :show-selection="true"
+      :show-pagination="true"
+      :current-page="currentPage"
+      :page-size="pageSize"
+      :total="filteredCourses.length"
+      :show-action="true"
+      :actions="tableActions"
+      :show-search="true"
+      :search-query="searchKeyword"
+      :search-placeholder="'搜索课程名称、描述或教师'"
+      :filter-func="filterCourse"
+      @selection-change="handleSelectionChange"
+      @size-change="handleSizeChange"
+      @current-change="handleCurrentChange"
+      @action="handleTableAction"
+    >
+        <!-- 操作按钮通过tableActions配置 -->
+    </AdvancedTable>
 
     <!-- 添加/编辑对话框 -->
     <el-dialog
@@ -181,12 +148,23 @@
   </div>
 </template>
 
+<style scoped>
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+</style>
+
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, Edit, Delete, Document, User, Filter, Fold } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import service from '@/utils/request'
+
+import DataCard from '@/components/DataCard.vue'
+import AdvancedTable from '@/components/AdvancedTable.vue'
 
 // 状态
 const searchKeyword = ref('')
@@ -219,6 +197,57 @@ const courseRules = {
   description: [{ required: true, message: '请输入课程描述', trigger: 'blur' }],
   teacherId: [{ required: true, message: '请选择教师', trigger: 'change' }]
 }
+
+// 表格列配置
+const columns = ref([
+  {
+    prop: 'id',
+    label: '课程ID',
+    width: 100
+  },
+  {
+    prop: 'name',
+    label: '课程名称',
+    minWidth: 200,
+    sortable: true
+  },
+  {
+    prop: 'description',
+    label: '课程描述',
+    minWidth: 250
+  },
+  {
+    prop: 'teacherName',
+    label: '教师',
+    width: 120,
+    sortable: true
+  }
+])
+
+// 表格操作按钮配置
+const tableActions = ref([
+  {
+    key: 'edit',
+    text: '编辑',
+    type: 'primary',
+    size: 'small',
+    icon: Edit
+  },
+  {
+    key: 'delete',
+    text: '删除',
+    type: 'danger',
+    size: 'small',
+    icon: Delete
+  }
+])
+
+// 统计卡片趋势数据
+const coursesTrend = ref(12.5)
+const teacherTrend = ref(8.3)
+
+// 选择的行数据
+const selectedRows = ref([])
 
 // 分页方法
 const handleSizeChange = (val) => {
@@ -270,6 +299,8 @@ const fetchCourses = async () => {
   }
 }
 
+
+
 // 获取教师列表
 const fetchTeachers = async () => {
   try {
@@ -302,6 +333,37 @@ const querySearch = (queryString, cb) => {
 // 选择搜索结果
 const handleSelect = (item) => {
   searchKeyword.value = item.value
+}
+
+// 课程过滤方法
+function filterCourse(item, query) {
+  if (!query) return true
+  
+  const lowerQuery = query.toLowerCase()
+  return (
+    item.name.toLowerCase().includes(lowerQuery) ||
+    item.description.toLowerCase().includes(lowerQuery) ||
+    item.teacherName.toLowerCase().includes(lowerQuery)
+  )
+}
+
+// 处理表格操作按钮点击
+function handleTableAction(action, row) {
+  switch (action.key) {
+    case 'edit':
+      handleEdit(row)
+      break
+    case 'delete':
+      handleDelete(row)
+      break
+    default:
+      break
+  }
+}
+
+// 处理表格选择变化
+function handleSelectionChange(rows) {
+  selectedRows.value = rows
 }
 
 // 添加课程
@@ -380,15 +442,14 @@ const initCourseNameChart = () => {
   
   courseNameChartInstance.value = echarts.init(courseNameChart.value)
   
-  // 按首字母分组统计课程数量
-  const firstLetterStats = {}
+  // 按课程名称统计课程数量（处理重名课程）
+  const courseNameStats = {}
   courses.value.forEach(course => {
-    const firstLetter = course.name.charAt(0).toUpperCase()
-    firstLetterStats[firstLetter] = (firstLetterStats[firstLetter] || 0) + 1
+    courseNameStats[course.name] = (courseNameStats[course.name] || 0) + 1
   })
   
-  // 排序
-  const sortedLetters = Object.entries(firstLetterStats)
+  // 排序并限制数量
+  const sortedCourses = Object.entries(courseNameStats)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
   
@@ -402,14 +463,19 @@ const initCourseNameChart = () => {
     grid: {
       left: '3%',
       right: '4%',
-      bottom: '3%',
+      bottom: '15%',
       containLabel: true
     },
     xAxis: {
       type: 'category',
-      data: sortedLetters.map(item => item[0]),
+      data: sortedCourses.map(item => item[0]),
       axisLabel: {
-        interval: 0
+        interval: 0,
+        rotate: 45,
+        formatter: function(value) {
+          // 如果名称太长，可以截断显示
+          return value.length > 8 ? value.substring(0, 8) + '...' : value;
+        }
       }
     },
     yAxis: {
@@ -419,7 +485,7 @@ const initCourseNameChart = () => {
       {
         name: '课程数量',
         type: 'bar',
-        data: sortedLetters.map(item => item[1]),
+        data: sortedCourses.map(item => item[1]),
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: '#83bff6' },
@@ -500,6 +566,8 @@ const initTeacherChart = () => {
   teacherChartInstance.value.setOption(option)
 }
 
+
+
 // 更新图表
 const updateCharts = () => {
   // 延迟执行以确保DOM已更新
@@ -529,7 +597,7 @@ fetchTeachers()
 fetchCourses()
 
 // 生命周期钩子
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('resize', handleResize)
 })
 

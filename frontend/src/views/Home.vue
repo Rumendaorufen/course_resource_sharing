@@ -9,9 +9,9 @@
         :router="true"
         :default-active="activeMenu"
         class="el-menu-vertical"
-        background-color="#545c64"
-        text-color="#fff"
-        active-text-color="#ffd04b"
+        background-color="#333333"
+        text-color="#ffffff"
+        active-text-color="#777777"
       >
         <el-menu-item index="/dashboard">
           <el-icon><HomeFilled /></el-icon>
@@ -33,29 +33,17 @@
           <span>资源中心</span>
         </el-menu-item>
 
-        <el-menu-item
-          v-if="user.role === 'TEACHER'"
-          index="/assignments"
-          :route="{ path: '/assignments' }"
-        >
+        <el-menu-item v-if="user.role === 'TEACHER'" index="/assignments">
           <el-icon><Document /></el-icon>
           <span>作业管理</span>
         </el-menu-item>
 
-        <el-menu-item
-          v-if="user.role === 'STUDENT'"
-          index="/student-assignments"
-          :route="{ path: '/student-assignments' }"
-        >
+        <el-menu-item v-if="user.role === 'STUDENT'" index="/student-assignments">
           <el-icon><Document /></el-icon>
           <span>我的作业</span>
         </el-menu-item>
 
-        <el-menu-item
-          v-if="user.role === 'TEACHER'"
-          index="/studentManagement"
-          :route="{ path: '/studentManagement' }"
-        >
+        <el-menu-item v-if="user.role === 'TEACHER'" index="/studentManagement">
           <el-icon><User /></el-icon>
           <span>学生管理</span>
         </el-menu-item>
@@ -129,11 +117,11 @@ const handleCommand = async (command) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #4a5064;
+  background-color: #333333;
 }
 
 .logo-container h1 {
-  color: #fff;
+  color: #ffffff;
   font-size: 18px;
   margin: 0;
 }
@@ -161,20 +149,20 @@ const handleCommand = async (command) => {
   cursor: pointer;
   display: flex;
   align-items: center;
-  color: #303133;
+  color: #555555;
 }
 
 .el-main {
-  background-color: #f0f2f5;
+  background-color: #f9f9f9;
   padding: 20px;
 }
 
-:deep(.el-menu-item) {
+.el-menu-item {
   display: flex;
   align-items: center;
 }
 
-:deep(.el-menu-item .el-icon) {
+.el-menu-item .el-icon {
   margin-right: 8px;
   font-size: 18px;
 }

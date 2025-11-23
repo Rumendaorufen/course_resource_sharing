@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("api/assignments/student")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ROLE_STUDENT')")
+@PreAuthorize("hasRole('STUDENT')")
 @Tag(name = "学生作业接口", description = "学生查看和提交作业的接口")
 public class StudentAssignmentController {
 

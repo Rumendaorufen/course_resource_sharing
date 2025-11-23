@@ -54,6 +54,11 @@
           </el-card>
         </el-col>
       </el-row>
+      
+      <!-- ECharts饼状图 -->
+      <el-card class="chart-card" v-loading="loading">
+        <div ref="chartRef" class="chart-container"></div>
+      </el-card>
 
       <!-- 提交列表 -->
       <el-table :data="submissions" style="width: 100%" v-loading="loading">
@@ -89,6 +94,10 @@
             <el-button v-if="row.status === 'SUBMITTED'" type="warning" size="small"
               @click="openGradeDialog(row)">
               打分
+            </el-button>
+            <el-button v-if="row.status === 'GRADED'" type="warning" size="small"
+              @click="openGradeDialog(row)">
+              修改评分
             </el-button>
           </template>
         </el-table-column>
@@ -158,12 +167,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import request from '@/utils/request'
 import * as XLSX from 'xlsx'
 import { getStudentsInCourse } from '@/api/course'
+import * as echarts from 'echarts'
 
 const route = useRoute()
 const router = useRouter()
@@ -185,16 +195,96 @@ const totalStudents = computed(() => allCourseStudents.value.length)
 const submittedCount = computed(() => submissions.value.filter(s => s.status === 'SUBMITTED' || s.status === 'GRADED').length)
 const notSubmittedCount = computed(() => {
   if (allCourseStudents.value.length === 0) return 0
-  return allCourseStudents.value.length - submittedCount.value
+  return Math.max(0, allCourseStudents.value.length - submittedCount.value)
 })
 const lateSubmissionCount = computed(() => {
-  if (!assignment.value) return 0
+  // 逾期未交：作业已过期，但学生仍未提交
+  if (!assignment.value || !assignment.value.deadline) return 0
+  
   const deadline = new Date(assignment.value.deadline)
-  return submissions.value.filter(s => {
-    if (!s.submitTime || (s.status !== 'SUBMITTED' && s.status !== 'GRADED')) return false
-    return new Date(s.submitTime) > deadline
-  }).length
+  const now = new Date()
+  
+  // 如果作业还未过期，不存在逾期未交的情况
+  if (now <= deadline) return 0
+  
+  // 获取已提交的学生ID集合
+  const submittedStudentIds = new Set(
+    submissions.value
+      .filter(s => s.status === 'SUBMITTED' || s.status === 'GRADED')
+      .map(s => s.studentId)
+  )
+  
+  // 逾期未交人数 = 课程总人数 - 已提交人数，确保结果不小于0
+  return Math.max(0, allCourseStudents.value.length - submittedStudentIds.size)
 })
+
+// ECharts实例引用
+const chartRef = ref(null)
+let chartInstance = null
+
+// 初始化饼状图
+const initChart = () => {
+  if (!chartRef.value) return
+  
+  chartInstance = echarts.init(chartRef.value)
+  updateChart()
+}
+
+// 更新饼状图数据
+const updateChart = () => {
+  if (!chartInstance) return
+  
+  const option = {
+    title: {
+      text: '作业提交情况统计',
+      left: 'center',
+      textStyle: {
+        fontSize: 16,
+        fontWeight: 'bold'
+      }
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: '{a} <br/>{b}: {c} ({d}%)'
+    },
+    legend: {
+      orient: 'vertical',
+      left: 'left',
+      data: ['已提交', '未提交', '逾期提交']
+    },
+    series: [
+      {
+        name: '作业提交情况',
+        type: 'pie',
+        radius: '50%',
+        data: [
+          { value: submittedCount.value, name: '已提交', itemStyle: { color: '#67C23A' } },
+          { value: notSubmittedCount.value, name: '未提交', itemStyle: { color: '#E6A23C' } },
+          { value: lateSubmissionCount.value, name: '逾期提交', itemStyle: { color: '#F56C6C' } }
+        ],
+        emphasis: {
+          itemStyle: {
+            shadowBlur: 10,
+            shadowOffsetX: 0,
+            shadowColor: 'rgba(0, 0, 0, 0.5)'
+          }
+        },
+        label: {
+          formatter: '{b}: {c}\n({d}%)'
+        }
+      }
+    ]
+  }
+  
+  chartInstance.setOption(option)
+}
+
+// 监听窗口大小变化，调整图表大小
+const handleResize = () => {
+  if (chartInstance) {
+    chartInstance.resize()
+  }
+}
 
 // 加载作业信息
 const loadAssignment = async () => {
@@ -317,12 +407,8 @@ const downloadFile = async (submission) => {
       }
     }
 
-// 打开打分对话框
+// 打开打分对话框(同时支持新增评分和修改评分)
 const openGradeDialog = (submission) => {
-  if (submission.status === 'GRADED') {
-    ElMessage.warning('该作业已评分')
-    return
-  }
   currentSubmission.value = submission
   gradeForm.value = {
     score: submission.score || 0,
@@ -382,9 +468,26 @@ const exportToExcel = () => {
   XLSX.writeFile(wb, fileName)
 }
 
+// 监听统计数据变化，更新图表
+watch([submittedCount, notSubmittedCount, lateSubmissionCount], () => {
+  updateChart()
+})
+
 onMounted(async () => {
   await loadAssignment()
   await loadSubmissions()
+  // 延迟初始化图表，确保DOM已经渲染
+  setTimeout(() => {
+    initChart()
+    window.addEventListener('resize', handleResize)
+  }, 100)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+  if (chartInstance) {
+    chartInstance.dispose()
+  }
 })
 </script>
 
@@ -406,6 +509,15 @@ onMounted(async () => {
 
 .statistics {
   margin-bottom: 20px;
+}
+
+.chart-card {
+  margin-bottom: 20px;
+}
+
+.chart-container {
+  width: 100%;
+  height: 400px;
 }
 
 .stat-header {

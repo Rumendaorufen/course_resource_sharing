@@ -28,7 +28,6 @@
 
         <el-form-item>
           <el-button
-            type="primary"
             :loading="loading"
             class="login-button"
             @click.prevent="handleLogin"
@@ -157,5 +156,21 @@ h2 {
 
 .login-button {
   width: 100%;
+  background-color: #409EFF !important;
+  color: white !important;
+  border-color: #409EFF !important;
+  --el-button-bg-color: #409EFF !important;
+  --el-button-text-color: white !important;
+  --el-button-border-color: #409EFF !important;
+}
+
+.login-button:hover {
+  background-color: #66b1ff !important;
+  --el-button-bg-color: #66b1ff !important;
+}
+
+.login-button:active {
+  background-color: #3a8ee6 !important;
+  --el-button-bg-color: #3a8ee6 !important;
 }
 </style>

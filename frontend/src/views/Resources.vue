@@ -50,6 +50,17 @@
       </div>
     </div>
 
+    <!-- 数据统计图表 -->
+    <div class="charts-container">
+      <div class="chart-item">
+        <CourseResourcePieChart width="100%" height="400px" />
+      </div>
+      <div class="chart-item">
+        <TopDownloadBarChart width="100%" height="400px" />
+      </div>
+
+    </div>
+
     <!-- 资源列表 -->
     <el-table 
       v-loading="loading"
@@ -302,6 +313,10 @@ import {
   CaretBottom
 } from '@element-plus/icons-vue'
 import service from '@/utils/request'
+// 图表组件
+import CourseResourcePieChart from '@/components/charts/CourseResourcePieChart.vue'
+import TopDownloadBarChart from '@/components/charts/TopDownloadBarChart.vue'
+
 
 // Store
 const store = useStore()
@@ -589,7 +604,18 @@ const fetchCourses = async () => {
     const response = await service.get('/courses/all')
     console.log('Courses response:', response)
     if (response.data.code === 200) {
-      courses.value = response.data.data
+      // 添加去重逻辑，确保相同课程名称只显示一次
+      const uniqueCourses = []
+      const courseNames = new Set()
+      
+      response.data.data.forEach(course => {
+        if (!courseNames.has(course.name)) {
+          courseNames.add(course.name)
+          uniqueCourses.push(course)
+        }
+      })
+      
+      courses.value = uniqueCourses
     } else {
       ElMessage.error(response.data.message || '获取课程列表失败')
     }
@@ -961,4 +987,24 @@ fetchResources()
   display: flex;
   justify-content: center;
 }
+
+/* 图表容器样式 */
+.charts-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.chart-item {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+/* 响应式布局 */
+@media screen and (max-width: 1024px) {
+  .charts-container {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
+

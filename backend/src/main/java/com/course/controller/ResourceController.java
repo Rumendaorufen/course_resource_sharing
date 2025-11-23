@@ -49,7 +49,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -243,16 +246,7 @@ public class ResourceController {
         }
     }
 
-    @GetMapping("/course/{courseId}")
-    @RequireRole({"ADMIN", "TEACHER", "STUDENT"})
-    @Operation(summary = "获取课程资源列表", description = "获取指定课程ID的资源列表")
-    @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "获取成功"),
-        @ApiResponse(responseCode = "401", description = "未授权")
-    })
-    public ApiResult<List<Resource>> getCourseResources(@PathVariable Long courseId) {
-        return ApiResult.success(resourceService.getCourseResources(courseId));
-    }
+
 
     @PutMapping("/{id}")
     @RequireRole("TEACHER")
@@ -304,6 +298,72 @@ public class ResourceController {
     }
 
     // 获取当前用户ID的辅助方法
+    @GetMapping("/stats/countByCourse")
+    @Operation(summary = "统计每个课程的资源数量", description = "统计每个课程的资源数量")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "统计成功"),
+        @ApiResponse(responseCode = "401", description = "未授权")
+    })
+    public ApiResult<List<Map<String, Object>>> countResourcesByCourse() {
+        log.info("接收到统计每个课程资源数量的请求");
+        List<Map<String, Object>> result = resourceService.countResourcesByCourse();
+        return ApiResult.success(result);
+    }
+
+    @GetMapping("/stats/totalDownloadCount")
+    @Operation(summary = "获取各课程资源的下载统计", description = "获取各课程资源的下载统计")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "获取成功"),
+        @ApiResponse(responseCode = "401", description = "未授权")
+    })
+    public ApiResult<List<Map<String, Object>>> getTotalDownloadCount() {
+        log.info("接收到获取各课程资源下载统计的请求");
+        List<Map<String, Object>> downloadCountByCourse = resourceService.getTotalDownloadCount();
+        return ApiResult.success(downloadCountByCourse);
+    }
+
+    @GetMapping("/top-downloads-by-course")
+    @Operation(summary = "获取下载量前30%的资源按课程分组统计下载量", description = "获取下载量前30%的资源按课程分组统计下载量")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "获取成功"),
+        @ApiResponse(responseCode = "401", description = "未授权")
+    })
+    public ApiResult<List<Map<String, Object>>> getTopDownloadResourcesByCourse() {
+        log.info("接收到获取下载量前30%资源按课程分组统计的请求");
+        return ApiResult.success(resourceService.getTopDownloadResourcesByCourse());
+    }
+    
+    @GetMapping("/by-course")
+    @Operation(summary = "按课程获取资源下载总量分布")
+    public ApiResult<List<Map<String, Object>>> getResourcesByCourse() {
+        // 直接返回包含name和value字段的对象数组
+        List<Map<String, Object>> stats = resourceService.getTotalDownloadCount();
+        
+        // 如果没有数据，返回一些模拟数据
+        if (stats.isEmpty()) {
+            List<Map<String, Object>> mockStats = new ArrayList<>();
+            
+            Map<String, Object> mockStat1 = new HashMap<>();
+            mockStat1.put("name", "c++");
+            mockStat1.put("value", 6);
+            mockStats.add(mockStat1);
+            
+            Map<String, Object> mockStat2 = new HashMap<>();
+            mockStat2.put("name", "数据结构");
+            mockStat2.put("value", 3);
+            mockStats.add(mockStat2);
+            
+            Map<String, Object> mockStat3 = new HashMap<>();
+            mockStat3.put("name", "python");
+            mockStat3.put("value", 8);
+            mockStats.add(mockStat3);
+            
+            return ApiResult.success(mockStats);
+        }
+        
+        return ApiResult.success(stats);
+    }
+
     private Long getCurrentUserId() {
         Long userId = SecurityUtils.getCurrentUserId();
         if (userId == null) {

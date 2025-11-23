@@ -5,7 +5,7 @@ import store from '@/store'
 
 // 创建 axios 实例
 const service = axios.create({
-  baseURL: '/api',  // 使用后端配置的 context-path
+  baseURL: '/api',  // 设置基础路径，用于API代理
   timeout: 15000,
   withCredentials: true,
   headers: {
@@ -17,9 +17,13 @@ const service = axios.create({
 // 请求拦截器
 service.interceptors.request.use(
   config => {
+    console.log('===== API REQUEST INFO =====')
     console.log('Request URL:', config.baseURL + config.url)
     console.log('Request Method:', config.method)
     console.log('Request Headers:', config.headers)
+    console.log('Original URL:', config.url)
+    console.log('Base URL:', config.baseURL)
+    console.log('=========================')
     
     // 添加认证 Token
     const token = store.getters.token
@@ -73,9 +77,17 @@ service.interceptors.response.use(
     }
     
     if (!error.response) {
+      console.error('Network error - no response:', error)
       ElMessage.error('网络错误，请检查服务器连接')
     } else {
-      const { status, data } = error.response
+      const { status, data, config } = error.response
+      console.error('===== API ERROR RESPONSE =====')
+      console.error('Status:', status)
+      console.error('Error Path:', config?.url)
+      console.error('Error Data:', data)
+      console.error('Full Config:', config)
+      console.error('=========================')
+      
       if (status === 401) {
         store.dispatch('logout').then(() => {
           router.push('/login')
@@ -83,6 +95,9 @@ service.interceptors.response.use(
         ElMessage.error('登录已过期，请重新登录')
       } else if (status === 403) {
         ElMessage.error(data?.message || '没有权限访问')
+      } else if (status === 404) {
+        console.error(`404 Not Found - Path: ${config?.url}`)
+        ElMessage.error(`资源未找到: ${config?.url}`)
       } else {
         ElMessage.error(data?.message || '请求失败')
       }

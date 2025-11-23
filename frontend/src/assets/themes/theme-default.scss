@@ -1,0 +1,51 @@
+/* 默认主题变量定义 */
+:root {
+  /* 主色调 */
+  --primary-color: #4080FF;
+  --primary-hover: #669DF6;
+  --primary-active: #0E42D2;
+
+  /* 辅助色 */
+  --success-color: #00B42A;
+  --warning-color: #FF7D00;
+  --danger-color: #F53F3F;
+  --info-color: #86909C;
+
+  /* 中性色 */
+  --text-primary: #1D2129;
+  --text-regular: #4E5969;
+  --text-secondary: #86909C;
+  --text-placeholder: #C9CDD4;
+
+  /* 边框颜色 */
+  --border-base: #E5E6EB;
+  --border-light: #F2F3F5;
+  --border-lighter: #F7F8FA;
+  --border-extra-light: #FCFDFF;
+
+  /* 背景色 */
+  --background-page: #F7F8FA;
+  --background-color: #FFFFFF;
+  --background-hover: #F2F3F5;
+
+  /* 阴影 */
+  --box-shadow-base: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --box-shadow-light: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --box-shadow-dark: 0 4px 16px rgba(0, 0, 0, 0.1);
+  
+  /* 圆角 */
+  --border-radius-base: 4px;
+  --border-radius-medium: 8px;
+  --border-radius-large: 12px;
+  
+  /* 间距 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  /* 过渡 */
+  --transition-base: all 0.3s ease;
+  --transition-fast: all 0.2s ease;
+}

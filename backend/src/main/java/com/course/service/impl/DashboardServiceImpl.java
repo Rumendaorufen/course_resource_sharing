@@ -7,6 +7,7 @@ import com.course.entity.Resource;
 import com.course.mapper.AssignmentMapper;
 import com.course.mapper.CourseMapper;
 import com.course.mapper.ResourceMapper;
+import com.course.mapper.UserMapper;
 import com.course.service.DashboardService;
 import com.course.vo.AssignmentVO;
 import com.course.vo.ResourceVO;
@@ -24,6 +25,7 @@ public class DashboardServiceImpl implements DashboardService {
     private final CourseMapper courseMapper;
     private final ResourceMapper resourceMapper;
     private final AssignmentMapper assignmentMapper;
+    private final UserMapper userMapper;
 
     @Override
     public Map<String, Integer> getStats() {
@@ -82,6 +84,10 @@ public class DashboardServiceImpl implements DashboardService {
                 vo.setId(resource.getId());
                 vo.setName(resource.getName());
                 vo.setCreateTime(resource.getCreateTime());
+                // 添加资源类型
+                vo.setType(resource.getType());
+                // 添加资源大小
+                vo.setFileSize(resource.getFileSize());
                 // 获取课程名称
                 Course course = courseMapper.selectById(resource.getCourseId());
                 if (course != null) {
@@ -137,5 +143,10 @@ public class DashboardServiceImpl implements DashboardService {
         result.put("assignments", assignmentCounts);
         
         return result;
+    }
+
+    @Override
+    public Long getUsersCount() {
+        return userMapper.selectCount(null);
     }
 }

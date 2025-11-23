@@ -1,5 +1,7 @@
 <template>
-  <router-view />
+  <transition name="page-transition" mode="out-in">
+    <router-view />
+  </transition>
 </template>
 
 <script setup>
@@ -46,6 +48,22 @@ const handleCommand = async (command) => {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* 页面过渡动画 */
+.page-transition-enter-active,
+.page-transition-leave-active {
+  transition: all 0.3s ease;
+}
+
+.page-transition-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.page-transition-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
 }
 
 html, body {

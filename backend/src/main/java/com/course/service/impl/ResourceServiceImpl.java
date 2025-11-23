@@ -32,6 +32,7 @@ import java.time.LocalDateTime;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -235,5 +236,29 @@ public class ResourceServiceImpl implements ResourceService {
     @CacheEvict(value = RESOURCE_CACHE_NAME, allEntries = true)
     public void clearResourceCache() {
         log.info("清除资源列表缓存");
+    }
+
+    @Override
+    public List<Map<String, Object>> countResourcesByCourse() {
+        log.info("开始统计每个课程的资源数量");
+        List<Map<String, Object>> result = resourceMapper.countResourcesByCourse();
+        log.info("统计每个课程的资源数量完成，结果: {}", result);
+        return result;
+    }
+
+    @Override
+    public List<Map<String, Object>> getTotalDownloadCount() {
+        log.info("开始获取各课程资源的下载量");
+        List<Map<String, Object>> downloadCountByCourse = resourceMapper.getDownloadCountByCourse();
+        log.info("获取各课程资源的下载量完成，结果: {}", downloadCountByCourse);
+        return downloadCountByCourse;
+    }
+
+    @Override
+    public List<Map<String, Object>> getTopDownloadResourcesByCourse() {
+        log.info("开始获取下载量前30%的资源按课程分组统计下载量");
+        List<Map<String, Object>> result = resourceMapper.getTopDownloadResourcesByCourse();
+        log.info("获取下载量前30%的资源按课程分组统计下载量完成，结果: {}", result);
+        return result;
     }
 }

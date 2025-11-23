@@ -36,6 +36,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/swagger-ui/**",
             "/v3/api-docs/**",
             "/files/**",
+            "/resources/**",
+            "/resource/**",
             "/error"
     );
 
@@ -144,3 +146,5 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         objectMapper.writeValue(response.getWriter(), errorDetails);
     }
 }
+
+

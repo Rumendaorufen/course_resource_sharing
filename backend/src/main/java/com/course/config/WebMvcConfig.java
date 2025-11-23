@@ -1,11 +1,18 @@
 package com.course.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
+
+    @Value("${file.upload.base-path}")
+    private String baseUploadPath;
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
@@ -14,7 +21,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .addResourceLocations("classpath:/static/");
                 
         // 配置文件上传目录的访问
-        String uploadPath = System.getProperty("user.dir") + "/uploads";
+        // 将相对路径转换为绝对路径，避免依赖启动目录
+        Path uploadPath = Paths.get(baseUploadPath).toAbsolutePath().normalize();
         registry.addResourceHandler("/files/**")
                 .addResourceLocations("file:" + uploadPath + "/");
         registry.addResourceHandler("/uploads/**")

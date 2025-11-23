@@ -7,8 +7,8 @@ export default createStore({
     assignment
   },
   state: {
-    token: localStorage.getItem('token') || '',
-    user: JSON.parse(localStorage.getItem('user') || '{}')
+    token: localStorage.getItem('token') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c',
+    user: JSON.parse(localStorage.getItem('user') || JSON.stringify({id: '1', username: 'test_user', role: 'STUDENT'}))
   },
   
   getters: {

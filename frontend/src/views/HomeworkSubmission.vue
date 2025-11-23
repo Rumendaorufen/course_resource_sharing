@@ -110,7 +110,6 @@
               :http-request="customUpload"
               :limit="1"
               :file-list="fileList"
-              accept=".pdf,.doc,.docx,.txt,.zip,.rar"
             >
               <template #trigger>
                 <el-button type="primary">
@@ -128,7 +127,7 @@
             <el-button type="primary" @click="submitHomework" :loading="submitting" :disabled="isSubmissionDeadlinePassed">
               {{ form.id ? '更新提交' : '提交作业' }}
             </el-button>
-            <el-button @click="$router.push('/student-assignments')">返回</el-button>
+            <el-button @click="goBack">返回</el-button>
             <el-button @click="cancelSubmit">取消提交</el-button>
           </el-form-item>
         </el-form>
@@ -215,14 +214,19 @@ const submitHomework = async () => {
     
     if (response.data.code === 200) {  
       ElMessage.success('作业提交成功')
-      // 触发父组件刷新作业列表
-      const assignmentsView = router.currentRoute.value.matched.find(
-        record => record.name === 'student-assignments'
+      // 触发父组件刷新作业列表 - 根据角色触发不同组件的刷新
+      const currentRole = store.state.user.role
+      let targetRouteName = currentRole === 'TEACHER' ? 'Assignments' : 'student-assignments'
+      
+      const targetView = router.currentRoute.value.matched.find(
+        record => record.name === targetRouteName
       )?.instances?.default
-      if (assignmentsView?.loadAssignments) {
-        await assignmentsView.loadAssignments()
+      
+      if (targetView?.loadAssignments) {
+        await targetView.loadAssignments()
       }
-      router.push('/student-assignments')
+      
+      goBack()
     } else {
       ElMessage.error(response.data.message || '作业提交失败')  
     }
@@ -251,6 +255,17 @@ const resetForm = () => {
   fileList.value = []
 }
 
+// 返回上一页或根据角色返回相应列表页面
+const goBack = () => {
+  if (store.state.user.role === 'TEACHER') {
+    // 教师应该返回作业管理页面
+    router.push('/assignments')
+  } else {
+    // 学生返回学生作业列表
+    router.push('/student-assignments')
+  }
+}
+
 // 取消提交
 const cancelSubmit = () => {
   ElMessageBox.confirm('确定要取消提交吗？已填写的内容将会丢失', '提示', {
@@ -259,7 +274,7 @@ const cancelSubmit = () => {
     type: 'warning'
   }).then(() => {
     resetForm()
-    router.push('/student-assignments')
+    goBack()
   }).catch(() => {})
 }
 
@@ -346,13 +361,7 @@ const beforeUploadFile = (file) => {
     return false;
   }
   
-  // 检查文件类型
-  const allowedTypes = ['.pdf', '.doc', '.docx', '.txt', '.zip', '.rar'];
-  const extension = '.' + file.name.split('.').pop().toLowerCase();
-  if (!allowedTypes.includes(extension)) {
-    ElMessage.error(`只支持以下文件类型: ${allowedTypes.join(', ')}`);
-    return false;
-  }
+  // 移除文件类型限制，允许上传任意类型文件
   
   return true;
 };

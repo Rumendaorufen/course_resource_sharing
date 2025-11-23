@@ -10,6 +10,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface ResourceMapper extends BaseMapper<Resource> {
@@ -98,4 +99,50 @@ public interface ResourceMapper extends BaseMapper<Resource> {
             "LEFT JOIN user u ON r.uploader_user_id = u.id " +
             "WHERE r.id = #{id}")
     Resource findByIdWithDetails(@Param("id") Long id);
+
+    /**
+     * 统计每个课程的资源数量
+     *
+     * @return 包含课程名称和资源数量的Map列表
+     */
+    @Select("SELECT c.name as course_name, COUNT(r.id) as resource_count FROM resource r JOIN course c ON r.course_id = c.id WHERE r.status = 1 GROUP BY c.id, c.name")
+    List<java.util.Map<String, Object>> countResourcesByCourse();
+
+    /**
+     * 获取所有资源的下载量总和
+     *
+     * @return 所有资源的下载量总和
+     */
+    @Select("SELECT SUM(download_count) FROM resource WHERE status = 1")
+    Long getTotalDownloadCount();
+    
+    /**
+     * 获取所有资源按课程分组的下载统计
+     *
+     * @return 按课程分组的下载统计列表
+     */
+    @Select("SELECT c.name as name, SUM(r.download_count) as value " +
+            "FROM resource r " +
+            "JOIN course c ON r.course_id = c.id " +
+            "WHERE r.status = 1 " +
+            "GROUP BY c.id, c.name " +
+            "ORDER BY value DESC")
+    List<Map<String, Object>> getDownloadCountByCourse();
+
+    /**
+     * 获取下载量前30%的资源按课程分组统计下载量
+     */
+    @Select("SELECT c.id as course_id, c.name as course_name, SUM(r.download_count) as total_downloads " +
+            "FROM resource r " +
+            "JOIN course c ON r.course_id = c.id " +
+            "WHERE r.id IN (" +
+            "    SELECT id FROM " +
+            "    (SELECT id, ROW_NUMBER() OVER (ORDER BY download_count DESC) as rn, " +
+            "            COUNT(*) OVER () as total_count " +
+            "     FROM resource WHERE status = 1) t " +
+            "    WHERE rn <= total_count * 0.3 " +
+            ") " +
+            "GROUP BY c.id, c.name " +
+            "ORDER BY total_downloads DESC")
+    List<Map<String, Object>> getTopDownloadResourcesByCourse();
 }

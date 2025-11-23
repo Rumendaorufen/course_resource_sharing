@@ -30,4 +30,10 @@ public interface DashboardService {
      * @return 包含月份、资源数量、作业数量的统计信息
      */
     Map<String, List<?>> getMonthlyStats();
+
+    /**
+     * 获取用户总数
+     * @return 用户总数
+     */
+    Long getUsersCount();
 }

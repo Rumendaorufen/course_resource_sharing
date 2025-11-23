@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -20,6 +21,7 @@ import java.util.Map;
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "仪表盘接口", description = "获取仪表盘统计数据和最近活动")
+@RequestMapping("/api/dashboard")
 public class DashboardController {
 
     private final DashboardService dashboardService;
@@ -42,7 +44,7 @@ public class DashboardController {
         }
     }
 
-    @GetMapping("/dashboard/recent-assignments")
+    @GetMapping("/recent-assignments")
     @Operation(summary = "获取最近作业", description = "获取最近的作业列表")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "获取成功"),
@@ -78,7 +80,7 @@ public class DashboardController {
         }
     }
     
-    @GetMapping("/dashboard/monthly-stats")
+    @GetMapping("/monthly-stats")
     @Operation(summary = "获取月度统计数据", description = "获取最近6个月的资源和作业统计数据")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "获取成功"),
@@ -92,6 +94,24 @@ public class DashboardController {
             return ApiResult.success(monthlyStats);
         } catch (Exception e) {
             log.error("Error getting monthly stats", e);
+            return ApiResult.error(e.getMessage());
+        }
+    }
+
+    @GetMapping("/users/count")
+    @Operation(summary = "获取用户总数", description = "获取系统中的用户总数")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "获取成功"),
+        @ApiResponse(responseCode = "401", description = "未授权")
+    })
+    public ApiResult<Long> getUsersCount() {
+        log.debug("Received request for users count");
+        try {
+            Long count = dashboardService.getUsersCount();
+            log.debug("Retrieved users count: {}", count);
+            return ApiResult.success(count);
+        } catch (Exception e) {
+            log.error("Error getting users count", e);
             return ApiResult.error(e.getMessage());
         }
     }

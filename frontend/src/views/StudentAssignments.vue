@@ -1,5 +1,37 @@
 <template>
   <div class="student-assignments">
+    <!-- 图表统计卡片 -->
+    <el-card class="stats-card" v-loading="loading">
+      <template #header>
+        <div class="card-header">
+          <span>作业评分统计</span>
+        </div>
+      </template>
+      <div class="stats-container">
+        <div class="chart-container">
+          <div id="scoreDistributionChart" ref="chartRef" class="chart"></div>
+        </div>
+        <div class="avg-score-container">
+          <div class="avg-score-item">
+            <span class="avg-score-label">平均分：</span>
+            <span class="avg-score-value">{{ averageScore || '-' }}</span>
+          </div>
+          <div class="score-range-item">
+            <span class="range-label">0-60分：</span>
+            <span class="range-value">{{ scoreDistribution.range0to60 }}份</span>
+          </div>
+          <div class="score-range-item">
+            <span class="range-label">60-80分：</span>
+            <span class="range-value">{{ scoreDistribution.range60to80 }}份</span>
+          </div>
+          <div class="score-range-item">
+            <span class="range-label">80-100分：</span>
+            <span class="range-value">{{ scoreDistribution.range80to100 }}份</span>
+          </div>
+        </div>
+      </div>
+    </el-card>
+
     <el-card class="box-card" v-loading="loading">
       <template #header>
         <div class="card-header">
@@ -98,16 +130,25 @@
 </template>
 
 <script setup name="student-assignments">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import * as echarts from 'echarts'
 import request from '@/utils/request'
 
 const router = useRouter()
 const store = useStore()
 const loading = ref(false)
 const assignments = ref([])
+const chartRef = ref(null)
+const chartInstance = ref(null)
+const scoreDistribution = ref({
+  range0to60: 0,
+  range60to80: 0,
+  range80to100: 0
+})
+const averageScore = ref(null)
 
 // 分页相关
 const currentPage = ref(1)
@@ -120,6 +161,115 @@ const paginatedAssignments = computed(() => {
   const end = start + pageSize.value
   return assignments.value.slice(start, end)
 })
+
+// 计算评分分布
+const calculateScoreDistribution = () => {
+  const gradedAssignments = assignments.value.filter(assign => 
+    assign.submissionStatus === 'GRADED' && assign.score !== undefined
+  )
+  
+  const distribution = {
+    range0to60: 0,
+    range60to80: 0,
+    range80to100: 0
+  }
+  
+  let totalScore = 0
+  let scoredCount = 0
+  
+  gradedAssignments.forEach(assign => {
+    const score = Number(assign.score)
+    if (!isNaN(score)) {
+      scoredCount++
+      totalScore += score
+      
+      if (score >= 0 && score < 60) {
+        distribution.range0to60++
+      } else if (score >= 60 && score < 80) {
+        distribution.range60to80++
+      } else if (score >= 80 && score <= 100) {
+        distribution.range80to100++
+      }
+    }
+  })
+  
+  scoreDistribution.value = distribution
+  
+  // 计算平均分
+  if (scoredCount > 0) {
+    averageScore.value = (totalScore / scoredCount).toFixed(1)
+  } else {
+    averageScore.value = null
+  }
+  
+  return distribution
+}
+
+// 初始化图表
+const initChart = () => {
+  if (!chartRef.value) return
+  
+  if (chartInstance.value) {
+    chartInstance.value.dispose()
+  }
+  
+  chartInstance.value = echarts.init(chartRef.value)
+  
+  updateChart()
+}
+
+// 更新图表数据
+const updateChart = () => {
+  if (!chartInstance.value) return
+  
+  const distribution = calculateScoreDistribution()
+  
+  const option = {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c} 份 ({d}%)'
+    },
+    legend: {
+      orient: 'horizontal',
+      bottom: '0%'
+    },
+    color: ['#F56C6C', '#E6A23C', '#67C23A'],
+    series: [
+      {
+        name: '作业评分分布',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 10,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: true,
+          formatter: '{b}\n{c}份'
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: 16,
+            fontWeight: 'bold'
+          }
+        },
+        labelLine: {
+          show: true
+        },
+        data: [
+          { value: distribution.range0to60, name: '0-60分' },
+          { value: distribution.range60to80, name: '60-80分' },
+          { value: distribution.range80to100, name: '80-100分' }
+        ]
+      }
+    ]
+  }
+  
+  chartInstance.value.setOption(option)
+}
 
 const loadAssignments = async () => {
   try {
@@ -134,6 +284,10 @@ const loadAssignments = async () => {
       }
     })
     total.value = assignments.value.length
+    
+    // 数据加载完成后更新图表
+    await nextTick()
+    updateChart()
   } catch (error) {
     ElMessage.error('获取作业列表失败')
     console.error(error)
@@ -230,9 +384,35 @@ const handleDeleteSubmission = async (row) => {
   }
 }
 
-onMounted(() => {
-  loadAssignments()
+onMounted(async () => {
+  await loadAssignments()
+  await nextTick()
+  initChart()
+  
+  // 监听窗口大小变化，重绘图表
+  window.addEventListener('resize', handleResize)
 })
+
+// 组件卸载时清理资源
+onUnmounted(() => {
+  cleanup()
+})
+
+// 窗口大小变化处理函数
+const handleResize = () => {
+  if (chartInstance.value) {
+    chartInstance.value.resize()
+  }
+}
+
+// 组件卸载时销毁图表实例和移除事件监听
+const cleanup = () => {
+  if (chartInstance.value) {
+    chartInstance.value.dispose()
+    chartInstance.value = null
+  }
+  window.removeEventListener('resize', handleResize)
+}
 </script>
 
 <style scoped>
@@ -244,6 +424,82 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* 统计卡片样式 */
+.stats-card {
+  margin-bottom: 20px;
+}
+
+.stats-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 10px 0;
+}
+
+.chart-container {
+  flex: 1;
+  min-width: 300px;
+  height: 300px;
+}
+
+.chart {
+  width: 100%;
+  height: 100%;
+}
+
+.avg-score-container {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+}
+
+.avg-score-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 6px;
+}
+
+.avg-score-label {
+  font-size: 16px;
+  color: #606266;
+}
+
+.avg-score-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #409eff;
+}
+
+.score-range-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 4px;
+}
+
+.range-label {
+  font-size: 14px;
+  color: #606266;
+}
+
+.range-value {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+}
+
+/* 作业列表样式 */
+.box-card {
+  margin-bottom: 20px;
 }
 
 .empty-text {
@@ -279,5 +535,20 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .stats-container {
+    flex-direction: column;
+  }
+  
+  .chart-container {
+    height: 250px;
+  }
+  
+  .avg-score-value {
+    font-size: 20px;
+  }
 }
 </style>
