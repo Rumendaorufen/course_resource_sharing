@@ -139,12 +139,13 @@
       <el-table-column
         fixed="right"
         label="操作"
-        width="150"
+        width="200"
       >
         <template #default="{ row }">
           <el-button
             type="primary"
             link
+            class="view-btn"
             @click="viewResourceDetail(row.id)"
           >
             查看
@@ -152,6 +153,7 @@
           <el-button
             type="success"
             link
+            class="download-btn"
             @click="handleDownload(row)"
           >
             <el-icon><Download /></el-icon>
@@ -161,6 +163,7 @@
             v-if="canDelete(row)"
             type="danger"
             link
+            class="delete-btn"
             @click="handleDelete(row)"
           >
             <el-icon><Delete /></el-icon>
@@ -986,6 +989,19 @@ fetchResources()
   margin-top: 20px;
   display: flex;
   justify-content: center;
+}
+
+/* 操作按钮样式 */
+.view-btn {
+  color: #409eff !important;
+}
+
+.download-btn {
+  color: #67c23a !important;
+}
+
+.delete-btn {
+  color: #f56c6c !important;
 }
 
 /* 图表容器样式 */

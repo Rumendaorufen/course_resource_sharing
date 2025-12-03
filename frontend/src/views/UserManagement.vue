@@ -761,12 +761,23 @@ const initUserActivityChart = () => {
       trigger: 'axis'
     },
     legend: {
-      data: ['学生', '教师']
+      data: ['学生', '教师'],
+      top: '10px',
+      right: '10px',
+      orient: 'horizontal',
+      backgroundColor: 'rgba(255, 255, 255, 0.8)',
+      borderRadius: 4,
+      padding: [5, 10],
+      itemGap: 15,
+      textStyle: {
+        fontSize: 12
+      }
     },
     grid: {
       left: '3%',
       right: '4%',
       bottom: '3%',
+      top: '50px',
       containLabel: true
     },
     xAxis: {
