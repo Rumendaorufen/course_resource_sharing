@@ -12,7 +12,9 @@ import com.course.mapper.AssignmentMapper;
 import com.course.mapper.CourseMapper;
 import com.course.mapper.StudentCourseMapper;
 import com.course.mapper.UserMapper;
+import com.course.document.AssignmentDocument;
 import com.course.service.AssignmentService;
+import com.course.service.MongoDbService;
 import com.course.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -34,6 +37,7 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
     private final CourseMapper courseMapper;
     private final StudentCourseMapper studentCourseMapper;
     private final UserMapper userMapper;
+    private final MongoDbService mongoDbService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -56,14 +60,49 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
         }
 
         try {
+            // 生成mongoId
+            String mongoId = UUID.randomUUID().toString();
+            log.info("生成mongoId: {}", mongoId);
+            
             // 创建作业
             Assignment assignment = new Assignment();
             BeanUtils.copyProperties(assignmentDTO, assignment);
             assignment.setTeacherId(currentUserId);
             assignment.setCreateTime(LocalDateTime.now());
             assignment.setStatus("active");
+            assignment.setMongoId(mongoId); // 设置mongoId
+            
+            // 获取教师名称
+            User teacher = userMapper.selectById(currentUserId);
+            String teacherName = teacher != null ? teacher.getRealName() : "";
+            
+            // 转换为MongoDB文档
+            AssignmentDocument assignmentDoc = new AssignmentDocument();
+            assignmentDoc.setId(mongoId);
+            assignmentDoc.setAssignmentId(assignment.getId());
+            assignmentDoc.setTitle(assignment.getTitle());
+            assignmentDoc.setDescription(assignment.getDescription());
+            assignmentDoc.setCourseId(assignment.getCourseId());
+            assignmentDoc.setCourseName(course.getName());
+            assignmentDoc.setTeacherId(assignment.getTeacherId());
+            assignmentDoc.setTeacherName(teacherName);
+            assignmentDoc.setDeadline(assignment.getDeadline());
+            assignmentDoc.setStatus(assignment.getStatus());
+            assignmentDoc.setCreateTime(assignment.getCreateTime());
+            assignmentDoc.setUpdateTime(assignment.getCreateTime());
+            
+            // 写入MongoDB
+            mongoDbService.saveAssignment(assignmentDoc);
+            log.info("作业写入MongoDB成功, mongoId: {}", mongoId);
+            
+            // 写入MySQL
             assignmentMapper.insert(assignment);
             log.info("作业创建成功, ID: {}", assignment.getId());
+            
+            // 更新MongoDB文档的assignmentId
+            assignmentDoc.setAssignmentId(assignment.getId());
+            mongoDbService.saveAssignment(assignmentDoc);
+            log.info("更新MongoDB文档assignmentId成功, assignmentId: {}", assignment.getId());
         } catch (Exception e) {
             log.error("作业创建失败", e);
             throw new ServiceException("作业创建失败: " + e.getMessage());
@@ -92,11 +131,49 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
                 throw new ServiceException("无权修改此作业");
             }
 
-            // 更新作业
+            // 生成新的mongoId
+            String newMongoId = UUID.randomUUID().toString();
+            log.info("生成新mongoId: {}", newMongoId);
+            
+            // 获取旧mongoId
+            String oldMongoId = assignment.getMongoId();
+            log.info("获取旧mongoId: {}", oldMongoId);
+
+            // 更新作业信息
             BeanUtils.copyProperties(assignmentDTO, assignment);
             assignment.setUpdateTime(LocalDateTime.now());
+            assignment.setMongoId(newMongoId); // 更新mongoId
+            
+            // 获取教师名称
+            User teacher = userMapper.selectById(assignment.getTeacherId());
+            String teacherName = teacher != null ? teacher.getRealName() : "";
+            
+            // 转换为MongoDB文档
+            AssignmentDocument assignmentDoc = new AssignmentDocument();
+            assignmentDoc.setId(newMongoId);
+            assignmentDoc.setAssignmentId(assignment.getId());
+            assignmentDoc.setTitle(assignment.getTitle());
+            assignmentDoc.setDescription(assignment.getDescription());
+            assignmentDoc.setCourseId(assignment.getCourseId());
+            assignmentDoc.setCourseName(course.getName());
+            assignmentDoc.setTeacherId(assignment.getTeacherId());
+            assignmentDoc.setTeacherName(teacherName);
+            assignmentDoc.setDeadline(assignment.getDeadline());
+            assignmentDoc.setStatus(assignment.getStatus());
+            assignmentDoc.setCreateTime(assignment.getCreateTime());
+            assignmentDoc.setUpdateTime(assignment.getUpdateTime());
+            
+            // 写入MongoDB
+            mongoDbService.saveAssignment(assignmentDoc);
+            log.info("作业更新写入MongoDB成功, mongoId: {}", newMongoId);
+            
+            // 更新MySQL
             assignmentMapper.updateById(assignment);
             log.info("作业更新成功");
+            
+            // 删除旧MongoDB文档，带重试
+            mongoDbService.deleteDocumentWithRetry(oldMongoId, "assignment", 3);
+            log.info("删除旧MongoDB文档, oldMongoId: {}", oldMongoId);
         } catch (Exception e) {
             log.error("作业更新失败", e);
             throw new ServiceException("作业更新失败: " + e.getMessage());

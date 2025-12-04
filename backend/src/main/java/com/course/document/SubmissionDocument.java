@@ -1,24 +1,27 @@
-package com.course.entity;
+package com.course.document;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
-import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
 /**
- * 作业提交实体类
+ * 作业提交文档实体类，用于MongoDB存储
  */
 @Data
-@TableName("homework_submission")
-public class HomeworkSubmission {
+@Document(collection = "homework_submission")
+public class SubmissionDocument {
     /**
-     * 主键ID
+     * MongoDB文档ID，使用UUID
      */
-    @TableId(type = IdType.AUTO)
-    private Long id;
+    @Id
+    private String id;
+    
+    /**
+     * 提交ID，与MySQL的homework_submission.id对应
+     */
+    private Long submissionId;
     
     /**
      * 作业ID
@@ -41,19 +44,9 @@ public class HomeworkSubmission {
     private String content;
     
     /**
-     * 附件URL
+     * 附件信息
      */
-    private String attachmentUrl;
-    
-    /**
-     * 附件名称
-     */
-    private String attachmentName;
-    
-    /**
-     * 附件大小
-     */
-    private Long attachmentSize;
+    private Attachment attachment;
     
     /**
      * 提交状态
@@ -96,8 +89,23 @@ public class HomeworkSubmission {
     private LocalDateTime updateTime;
     
     /**
-     * MongoDB文档ID
+     * 附件内部类
      */
-    @TableField("mongo_id")
-    private String mongoId;
+    @Data
+    public static class Attachment {
+        /**
+         * 附件URL
+         */
+        private String url;
+        
+        /**
+         * 附件名称
+         */
+        private String name;
+        
+        /**
+         * 附件大小
+         */
+        private Long size;
+    }
 }

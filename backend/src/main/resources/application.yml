@@ -12,6 +12,12 @@ spring:
   application:
     name: course-resource-sharing
   
+  # MongoDB配置
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/course_resource_sharing
+      database: course_resource_sharing
+  
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3308/course_resource_sharing_data_new?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai

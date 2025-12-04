@@ -100,7 +100,9 @@
 - **安全框架**: Spring Security
 - **身份认证**: JWT (JSON Web Token) 0.11.5
 - **ORM框架**: MyBatis-Plus 3.5.3.1
-- **数据库**: MySQL 8.0.33
+- **数据库**: 
+  - MySQL 8.0.33 (主数据库，存储结构化数据)
+  - MongoDB 4.4+ (文档数据库，用于资源和作业数据的双写存储)
 - **缓存**: Caffeine 2.9.3 + Redis 6.0+（二级缓存架构）
 - **API文档**: Knife4j 4.5.0 (基于OpenAPI 3.0)
 - **工具库**: Hutool 5.8.20
@@ -108,6 +110,7 @@
 - **项目构建**: Maven 3.8.1
 - **日志框架**: SLF4J + Logback
 - **文件存储**: 本地文件系统（支持扩展到云存储）
+- **双写机制**: MySQL和MongoDB数据双写，确保数据一致性
 
 #### 后端架构设计
 后端采用经典的Spring Boot分层架构，严格遵循MVC设计模式和单一职责原则：
@@ -152,6 +155,7 @@
 6. **配置层（Config）**
    - Spring Security安全配置
    - 数据源和MyBatis配置
+   - MongoDB配置
    - 跨域和CORS配置
    - 多级缓存配置（Caffeine + Redis）
    - 日志配置
@@ -164,12 +168,66 @@
    - 密码加密和安全存储
    - 防止XSS和CSRF攻击
 
-8. **公共组件（Common/Utils/Exception）**
+8. **MongoDB双写层（Document/Service）**
+   - MongoDB文档实体类定义
+   - 双写服务接口和实现
+   - 带重试机制的MongoDB操作
+   - 垃圾数据清理机制
+   - 定时清理任务
+
+9. **公共组件（Common/Utils/Exception）**
    - 统一异常处理
    - 工具类和通用组件
    - 常量定义和枚举类型
    - 注解和AOP切面
    - 响应结果封装
+
+### MySQL和MongoDB双写架构
+
+#### 设计目标
+- 实现MySQL和MongoDB的数据双写机制
+- 确保数据一致性
+- 无需引入消息队列，降低系统复杂度
+- 支持资源、作业和作业提交数据的双写
+- 实现可靠的重试和错误处理机制
+
+#### 核心设计思路
+1. 查询MongoDB文档中的数据，必须通过数据库表中保存的mongoId
+2. 若mongoId在数据库中未保存成功，MongoDB中的数据永远不会被查询到
+3. 新增数据时：先写MongoDB，再写MySQL
+4. 修改数据时：新增MongoDB文档，生成新mongoId，再修改MySQL
+5. 删除旧MongoDB文档时：直接在业务代码中处理，实现本地重试机制
+6. 若本地重试失败，记录日志，由定时任务清理
+
+#### 双写流程
+
+##### 新增资源流程
+1. 生成新的mongoId
+2. 写入MongoDB文档
+3. 写入数据库表
+4. 更新成功返回结果
+5. 数据库写入失败，MongoDB数据成为垃圾
+
+##### 修改资源流程
+1. 生成新的mongoId
+2. 新增MongoDB文档（不直接修改旧文档）
+3. 修改数据库表，更新mongoId
+4. 直接删除旧MongoDB文档（带本地重试）
+5. 删除成功返回结果
+6. 删除失败记录日志，由定时任务清理
+
+##### 定时清理垃圾数据流程
+1. 定时任务触发
+2. 查询待清理记录
+3. 遍历待清理记录
+4. 删除MongoDB文档
+5. 更新清理记录状态
+
+#### 技术实现
+- **MongoDbService**: 提供MongoDB操作的核心服务，包括save和delete方法
+- **MongoDbServiceImpl**: 实现了带重试机制的文档删除逻辑
+- **MongoCleanupJob**: 每小时执行一次的定时任务，清理MongoDB垃圾数据
+- **mongo_cleanup表**: 记录需要清理的MongoDB文档信息
 
 ### 多级缓存架构
 
@@ -228,15 +286,17 @@
 #### 架构概览
 ```
 +---------------------+                 +---------------------+                 +---------------------+
-|                     |                 |                     |                 |                     |
-|     前端应用        |                 |     后端服务        |                 |    Redis缓存        |
-|  (Vue 3 + Element)  |◄───────────────►| (Spring Boot + MyBatis) |◄───────────────►|                     |
-|                     |  RESTful API    |                     |  缓存操作       |                     |
-+----------+----------+                 +----------+----------+                 +---------------------+
-           |                                        |
-           |                                        |
-           ▼                                        ▼
+|                     |                 |                     |                 |    Redis缓存        |
+|     前端应用        |                 |     后端服务        |◄───────────────►|                     |
+|  (Vue 3 + Element)  |◄───────────────►| (Spring Boot + MyBatis) |                 |                     |
+|                     |  RESTful API    |                     |                 +---------------------+
 +----------+----------+                 +----------+----------+
+           |                                        |
+           |                                        ├───────────────►+---------------------+
+           |                                        |                 |    MongoDB数据库    |
+           |                                        |  双写操作       |                     |
+           ▼                                        |                 |                     |
++----------+----------+                 +----------+----------+     +---------------------+
 |                     |                 |                     |
 |  浏览器存储         |                 |    MySQL 数据库     |
 | (LocalStorage/Cookie) |                 |                     |
@@ -281,25 +341,31 @@
 - **Maven**: 3.6 或更高版本
 - **Node.js**: 14.0 或更高版本
 - **MySQL**: 8.0 或更高版本
+- **MongoDB**: 4.4 或更高版本（用于数据双写存储）
 - **Redis**: 6.0 或更高版本（可选，用于二级缓存）
 
 ### 后端部署
 
 1. **克隆项目**:
    ```bash
-   git clone <repository_url>
+   git clone <https://github.com/Rumendaorufen/course_resource_sharing>
    cd Course_resource_sharing
    ```
 
-2. **配置数据库**:
+2. **配置MySQL数据库**:
    - 创建MySQL数据库: `CREATE DATABASE course_sharing DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
-   - 修改 `backend/src/main/resources/application.yml` 文件，配置数据库连接信息
+   - 修改 `backend/src/main/resources/application.yml` 文件，配置MySQL连接信息
 
-3. **配置Redis（可选）**:
+3. **配置MongoDB数据库**:
+   - 确保MongoDB服务已启动
+   - MongoDB默认无需创建数据库，会在首次写入时自动创建
+   - 修改 `backend/src/main/resources/application.yml` 文件，配置MongoDB连接信息
+
+4. **配置Redis（可选）**:
    - 确保Redis服务已启动
    - 修改 `backend/src/main/resources/application.yml` 文件，配置Redis连接信息
 
-4. **构建并启动后端服务**:
+5. **构建并启动后端服务**:
    ```bash
    cd backend
    mvn clean package -DskipTests
@@ -358,14 +424,26 @@ Course_resource_sharing/
 │   │   │   │   │   ├── SecurityConfig.java # 安全配置
 │   │   │   │   │   └── WebMvcConfig.java # Web配置
 │   │   │   │   ├── controller/    # API控制器
+│   │   │   │   ├── document/      # MongoDB文档实体类
+│   │   │   │   │   ├── AssignmentDocument.java # 作业文档
+│   │   │   │   │   ├── ResourceDocument.java # 资源文档
+│   │   │   │   │   └── SubmissionDocument.java # 作业提交文档
 │   │   │   │   ├── dto/           # 请求数据传输对象
 │   │   │   │   ├── entity/        # 数据库实体类
+│   │   │   │   │   ├── MongoCleanup.java # MongoDB清理任务实体
+│   │   │   │   │   └── ...
 │   │   │   │   ├── enums/         # 枚举类型
 │   │   │   │   ├── exception/     # 异常定义
+│   │   │   │   ├── job/           # 定时任务
+│   │   │   │   │   └── MongoCleanupJob.java # MongoDB清理任务
 │   │   │   │   ├── mapper/        # 数据访问层
+│   │   │   │   │   ├── MongoCleanupMapper.java # MongoDB清理任务Mapper
+│   │   │   │   │   └── ...
 │   │   │   │   ├── security/      # 安全相关
 │   │   │   │   ├── service/       # 业务逻辑层
+│   │   │   │   │   ├── MongoDbService.java # MongoDB操作服务接口
 │   │   │   │   │   └── impl/      # 业务逻辑实现
+│   │   │   │   │       └── MongoDbServiceImpl.java # MongoDB操作服务实现
 │   │   │   │   ├── utils/         # 工具类
 │   │   │   │   └── vo/            # 响应数据传输对象
 │   │   │   └── resources/         # 配置文件和静态资源
@@ -448,8 +526,16 @@ Course_resource_sharing/
    - 实时数据更新
    - 支持图表导出功能
 
-7. **高可用性和容错设计**
-   - Redis不可用时自动降级到本地缓存
+7. **MySQL和MongoDB双写机制**
+   - 实现无消息队列的数据双写
+   - 确保数据一致性和可靠性
+   - 带重试机制的错误处理
+   - 定时清理垃圾数据
+   - 不影响现有Redis缓存架构
+
+8. **高可用性和容错设计**
+   - Redis不可用时自动降级到Caffeine缓存
+   - MongoDB操作失败的重试和清理机制
    - 异常捕获和统一处理
    - 详细的日志记录
    - 支持服务监控和健康检查
@@ -554,12 +640,19 @@ Course_resource_sharing/
    - 部署dist目录到Nginx服务器
    - 配置Nginx反向代理和静态资源访问
 
-3. **数据库部署**
+3. **MySQL数据库部署**
    - 安装MySQL 8.0+数据库
    - 导入初始化数据
    - 配置主从复制和备份策略
 
-4. **Redis部署**
+4. **MongoDB数据库部署**
+   - 安装MongoDB 4.4+服务器
+   - 配置副本集（可选，用于高可用性）
+   - 创建数据库和用户
+   - 配置认证和访问控制
+   - 配置持久化策略
+
+5. **Redis部署**
    - 安装Redis 5.0+服务器
    - 配置Redis集群（可选）
    - 配置持久化策略

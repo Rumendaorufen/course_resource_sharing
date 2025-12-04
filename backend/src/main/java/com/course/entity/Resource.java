@@ -77,6 +77,12 @@ public class Resource extends BaseEntity {
      * 状态：0-禁用，1-启用
      */
     private Integer status;
+    
+    /**
+     * MongoDB文档ID
+     */
+    @TableField("mongo_id")
+    private String mongoId;
 
     public String getCourseName() {
         return courseName;

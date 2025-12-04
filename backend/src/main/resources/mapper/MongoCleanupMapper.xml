@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.course.mapper.MongoCleanupMapper">
+    
+    <!-- 根据状态查询清理记录 -->
+    <select id="selectByStatus" resultType="com.course.entity.MongoCleanup">
+        SELECT * FROM mongo_cleanup WHERE status = #{status}
+    </select>
+    
+</mapper>

@@ -8,8 +8,10 @@ import com.course.common.exception.ServiceException;
 import com.course.dto.ResourceDTO;
 import com.course.entity.Resource;
 import com.course.mapper.ResourceMapper;
+import com.course.document.ResourceDocument;
 import com.course.service.CourseService;
 import com.course.service.FileService;
+import com.course.service.MongoDbService;
 import com.course.service.ResourceService;
 import com.course.vo.CourseVO;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +45,7 @@ public class ResourceServiceImpl implements ResourceService {
     private final ResourceMapper resourceMapper;
     private final CourseService courseService;
     private final FileService fileService;
+    private final MongoDbService mongoDbService;
 
     private static final String RESOURCE_CACHE_NAME = "resourceCache";
 
@@ -67,6 +70,10 @@ public class ResourceServiceImpl implements ResourceService {
             String filePath = fileService.storeFile(file);
             log.info("文件保存成功, 路径: {}", filePath);
 
+            // 生成mongoId
+            String mongoId = UUID.randomUUID().toString();
+            log.info("生成mongoId: {}", mongoId);
+
             // 创建资源记录
             Resource resource = new Resource();
             BeanUtils.copyProperties(resourceDTO, resource);
@@ -78,16 +85,46 @@ public class ResourceServiceImpl implements ResourceService {
             resource.setCreateTime(LocalDateTime.now());
             resource.setUpdateTime(LocalDateTime.now());
             resource.setStatus(1); // Set status to enabled
+            resource.setMongoId(mongoId); // 设置mongoId
+            
+            // 转换为MongoDB文档
+            ResourceDocument resourceDoc = new ResourceDocument();
+            resourceDoc.setId(mongoId);
+            resourceDoc.setResourceId(resource.getId());
+            resourceDoc.setName(resource.getName());
+            resourceDoc.setDescription(resource.getDescription());
+            resourceDoc.setFilePath(resource.getFilePath());
+            resourceDoc.setFileName(resource.getFileName());
+            resourceDoc.setFileSize(resource.getFileSize());
+            resourceDoc.setUploaderUserId(resource.getUploaderUserId());
+            resourceDoc.setUploaderName("" + uploaderId); // 临时设置，后续可优化为真实用户名
+            resourceDoc.setCourseId(resource.getCourseId());
+            resourceDoc.setCourseName(courseVO.getName());
+            resourceDoc.setDownloadCount(resource.getDownloadCount());
+            resourceDoc.setType(resource.getType());
+            resourceDoc.setStatus(resource.getStatus());
+            resourceDoc.setCreateTime(resource.getCreateTime());
+            resourceDoc.setUpdateTime(resource.getUpdateTime());
+            
+            // 写入MongoDB
+            mongoDbService.saveResource(resourceDoc);
+            log.info("资源写入MongoDB成功, mongoId: {}", mongoId);
             
             log.info("准备插入资源记录: {}", resource);
             int result = resourceMapper.insert(resource);
             log.info("资源记录插入结果: {}, 资源ID: {}", result, resource.getId());
             
             if (result <= 0) {
-                // 如果插入失败，删除已上传的文件
+                // 如果插入失败，删除已上传的文件和MongoDB文档
                 fileService.deleteFile(filePath);
+                mongoDbService.deleteDocument(mongoId, "resource");
                 throw new ServiceException("资源记录插入失败");
             }
+            
+            // 更新MongoDB文档的resourceId
+            resourceDoc.setResourceId(resource.getId());
+            mongoDbService.saveResource(resourceDoc);
+            log.info("更新MongoDB文档resourceId成功, resourceId: {}", resource.getId());
             
             log.info("资源上传成功, 资源ID: {}", resource.getId());
             return resource;
@@ -205,14 +242,55 @@ public class ResourceServiceImpl implements ResourceService {
                 throw new ResourceNotFoundException("Resource", "id", id);
             }
 
+            // 生成新的mongoId
+            String newMongoId = UUID.randomUUID().toString();
+            log.info("生成新mongoId: {}", newMongoId);
+            
+            // 获取旧mongoId
+            String oldMongoId = resource.getMongoId();
+            log.info("获取旧mongoId: {}", oldMongoId);
+
+            // 更新资源信息
             resource.setName(resourceDTO.getName());
             resource.setDescription(resourceDTO.getDescription());
             resource.setType(resourceDTO.getType());
+            resource.setUpdateTime(LocalDateTime.now());
+            resource.setMongoId(newMongoId); // 更新mongoId
 
+            // 获取课程名称
+            CourseVO courseVO = courseService.getCourseById(resource.getCourseId());
+            
+            // 转换为MongoDB文档
+            ResourceDocument resourceDoc = new ResourceDocument();
+            resourceDoc.setId(newMongoId);
+            resourceDoc.setResourceId(resource.getId());
+            resourceDoc.setName(resource.getName());
+            resourceDoc.setDescription(resource.getDescription());
+            resourceDoc.setFilePath(resource.getFilePath());
+            resourceDoc.setFileName(resource.getFileName());
+            resourceDoc.setFileSize(resource.getFileSize());
+            resourceDoc.setUploaderUserId(resource.getUploaderUserId());
+            resourceDoc.setUploaderName("" + resource.getUploaderUserId()); // 临时设置，后续可优化为真实用户名
+            resourceDoc.setCourseId(resource.getCourseId());
+            resourceDoc.setCourseName(courseVO.getName());
+            resourceDoc.setDownloadCount(resource.getDownloadCount());
+            resourceDoc.setType(resource.getType());
+            resourceDoc.setStatus(resource.getStatus());
+            resourceDoc.setCreateTime(resource.getCreateTime());
+            resourceDoc.setUpdateTime(resource.getUpdateTime());
+            
+            // 写入MongoDB
+            mongoDbService.saveResource(resourceDoc);
+            log.info("资源更新写入MongoDB成功, mongoId: {}", newMongoId);
+            
             if (resourceMapper.updateById(resource) != 1) {
                 throw new ServiceException("更新资源信息失败");
             }
             log.info("资源更新成功, 资源ID: {}", id);
+            
+            // 删除旧MongoDB文档，带重试
+            mongoDbService.deleteDocumentWithRetry(oldMongoId, "resource", 3);
+            log.info("删除旧MongoDB文档, oldMongoId: {}", oldMongoId);
         } catch (Exception e) {
             log.error("资源更新失败, 资源ID: {}", id, e);
             throw new ServiceException("资源更新失败: " + e.getMessage());

@@ -28,4 +28,10 @@ public class Assignment {
     
     @TableField(exist = false)
     private String teacherName;
+    
+    /**
+     * MongoDB文档ID
+     */
+    @TableField("mongo_id")
+    private String mongoId;
 }

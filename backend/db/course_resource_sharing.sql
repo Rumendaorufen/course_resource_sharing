@@ -11,7 +11,7 @@
  Target Server Version : 80034 (8.0.34)
  File Encoding         : 65001
 
- Date: 23/11/2025 13:36:46
+ Date: 04/12/2025 15:56:13
 */
 
 SET NAMES utf8mb4;
@@ -31,13 +31,14 @@ CREATE TABLE `assignment`  (
   `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT 'PENDING' COMMENT '状态：PENDING-待完成，SUBMITTED-已提交，OVERDUE-已逾期',
+  `mongo_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'MongoDB文档ID',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_course_id`(`course_id` ASC) USING BTREE,
   INDEX `idx_teacher_id`(`teacher_id` ASC) USING BTREE,
   INDEX `idx_create_time`(`create_time` ASC) USING BTREE,
   CONSTRAINT `fk_assignment_course` FOREIGN KEY (`course_id`) REFERENCES `course` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT `fk_assignment_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `user` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 40 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '作业表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 41 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '作业表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of assignment
@@ -57,7 +58,7 @@ CREATE TABLE `course`  (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_teacher`(`teacher_id` ASC) USING BTREE,
   CONSTRAINT `fk_course_teacher` FOREIGN KEY (`teacher_id`) REFERENCES `user` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 30 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '课程表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 31 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '课程表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of course
@@ -84,11 +85,31 @@ CREATE TABLE `homework_submission`  (
   `grade_time` datetime NULL DEFAULT NULL COMMENT '批改时间',
   `update_time` datetime NULL DEFAULT NULL,
   `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `mongo_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT 'MongoDB文档ID',
   PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 78 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 80 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of homework_submission
+-- ----------------------------
+
+-- ----------------------------
+-- Table structure for mongo_cleanup
+-- ----------------------------
+DROP TABLE IF EXISTS `mongo_cleanup`;
+CREATE TABLE `mongo_cleanup`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '清理ID',
+  `mongo_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT 'MongoDB文档ID',
+  `collection` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '集合名称',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `status` int NOT NULL DEFAULT 0 COMMENT '状态：0-待清理，1-已清理',
+  `cleanup_time` datetime NULL DEFAULT NULL COMMENT '清理时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_status`(`status` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = 'MongoDB清理记录表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Records of mongo_cleanup
 -- ----------------------------
 
 -- ----------------------------
@@ -109,12 +130,13 @@ CREATE TABLE `resource`  (
   `status` int NULL DEFAULT 1 COMMENT '状态：0-禁用，1-启用',
   `create_time` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `mongo_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'MongoDB文档ID',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_course_id`(`course_id` ASC) USING BTREE,
   INDEX `idx_uploader_id`(`uploader_user_id` ASC) USING BTREE,
   CONSTRAINT `resource_ibfk_1` FOREIGN KEY (`course_id`) REFERENCES `course` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `resource_ibfk_2` FOREIGN KEY (`uploader_user_id`) REFERENCES `user` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 139 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '资源表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 144 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '资源表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of resource
@@ -134,7 +156,7 @@ CREATE TABLE `student_course`  (
   INDEX `idx_course`(`course_id` ASC) USING BTREE,
   CONSTRAINT `fk_sc_course` FOREIGN KEY (`course_id`) REFERENCES `course` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `fk_sc_student` FOREIGN KEY (`student_id`) REFERENCES `user` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 25 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '学生课程关联表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 27 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '学生课程关联表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of student_course
@@ -160,7 +182,7 @@ CREATE TABLE `user`  (
   `last_login_time` datetime NULL DEFAULT NULL,
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_username`(`username` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 15 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 19 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Records of user
